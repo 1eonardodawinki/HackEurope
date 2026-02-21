@@ -459,9 +459,9 @@ class AISMonitor:
 
         elif msg_type == "ShipStaticData":
             static = msg.get("Message", {}).get("ShipStaticData", {})
-            raw_type = static.get("TypeOfShip", None)
+            raw_type = static.get("Type", None)
             ship_type = _ais_type_label(raw_type)
-            print(f"[AIS] ShipStaticData mmsi={mmsi} TypeOfShip={raw_type} → {ship_type}")
+            print(f"[AIS] ShipStaticData mmsi={mmsi} Type={raw_type} → {ship_type}")
             # Always cache so PositionReport can pick it up later
             self._type_cache[mmsi] = ship_type
             if mmsi in self._ships:
