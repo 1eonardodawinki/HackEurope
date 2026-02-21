@@ -37,6 +37,22 @@ def haversine_nm(lat1, lon1, lat2, lon2) -> float:
     return R * 2 * math.asin(math.sqrt(a))
 
 
+def _ais_type_label(code) -> str:
+    """Map AIS numeric ship type code to a readable category."""
+    try:
+        code = int(code)
+    except (TypeError, ValueError):
+        return "other"
+    if 70 <= code <= 79: return "cargo"
+    if 80 <= code <= 89: return "tanker"
+    if 60 <= code <= 69: return "passenger"
+    if code == 30 or 31 <= code <= 32: return "fishing"
+    if code == 35: return "military"
+    if 50 <= code <= 59: return "service"
+    if code in (36, 37): return "pleasure"
+    return "other"
+
+
 def in_any_hotzone(lat: float, lon: float) -> str | None:
     for name, hz in HOTZONES.items():
         if hz["min_lat"] <= lat <= hz["max_lat"] and hz["min_lon"] <= lon <= hz["max_lon"]:
@@ -99,6 +115,7 @@ class AISMonitor:
 
         # State
         self._ships: dict[int, dict] = {}     # mmsi → ship dict
+        self._type_cache: dict[int, str] = {} # mmsi → type from ShipStaticData
         self._running = False
         self._incident_count = 0
 
@@ -300,6 +317,9 @@ class AISMonitor:
             trail = (prev["trail"][-19:] if prev else [])
             trail.append([lon, lat])
 
+            # Use cached type from ShipStaticData (may arrive before PositionReport)
+            ship_type = (prev["type"] if prev and prev["type"] != "unknown" else None) or self._type_cache.get(mmsi, "unknown")
+
             self._ships[mmsi] = {
                 "mmsi": mmsi,
                 "name": meta.get("ShipName", f"MMSI-{mmsi}").strip(),
@@ -307,7 +327,7 @@ class AISMonitor:
                 "lon": lon,
                 "sog": sog,
                 "cog": cog,
-                "type": "tanker",
+                "type": ship_type,
                 "status": "active",
                 "in_hotzone": in_any_hotzone(lat, lon),
                 "trail": trail,
@@ -316,9 +336,16 @@ class AISMonitor:
 
         elif msg_type == "ShipStaticData":
             static = msg.get("Message", {}).get("ShipStaticData", {})
+            raw_type = static.get("TypeOfShip", None)
+            ship_type = _ais_type_label(raw_type)
+            print(f"[AIS] ShipStaticData mmsi={mmsi} TypeOfShip={raw_type} → {ship_type}")
+            # Always cache so PositionReport can pick it up later
+            self._type_cache[mmsi] = ship_type
             if mmsi in self._ships:
-                self._ships[mmsi]["name"] = static.get("Name", self._ships[mmsi]["name"]).strip()
-                self._ships[mmsi]["type"] = static.get("Type", "unknown")
+                name = static.get("Name", "").strip()
+                if name:
+                    self._ships[mmsi]["name"] = name
+                self._ships[mmsi]["type"] = ship_type
 
         # Broadcast is handled by _live_broadcast_loop every 5s
 
