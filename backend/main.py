@@ -15,6 +15,9 @@ from pydantic import BaseModel
 from config import HOTZONES, DEMO_MODE, AISSTREAM_API_KEY
 from ais_monitor import AISMonitor
 from incident_detector import IncidentDetector
+from ml_model import get_dark_fleet_probability
+from agents.investigation_agents import run_parallel_investigation
+from agents.reporter_agent import generate_investigation_report
 import database as db
 
 # ── WebSocket Manager ─────────────────────────────────────────────────────────
@@ -131,6 +134,64 @@ async def get_report_history(limit: int = 10):
 
 class ModeRequest(BaseModel):
     demo: bool
+
+
+class InvestigationRequest(BaseModel):
+    mmsi: str
+    vessel_name: str = ""
+    flag_state: str = ""
+    region: str = ""
+
+
+async def _run_investigation(mmsi: str, vessel_name: str, flag_state: str, region: str):
+    """Background task: run the full investigation pipeline and broadcast results."""
+    vessel_info = {"mmsi": mmsi, "vessel_name": vessel_name, "flag_state": flag_state, "region": region}
+
+    async def progress(msg: dict):
+        await manager.broadcast({"type": "agent_status", "data": msg})
+
+    print(f"[Investigate] Starting pipeline for MMSI {mmsi}")
+    await manager.broadcast({
+        "type": "agent_status",
+        "data": {"stage": "investigation", "message": f"Investigation started for MMSI {mmsi}..."},
+    })
+
+    try:
+        ml_score = await get_dark_fleet_probability(mmsi, vessel_name)
+        print(f"[Investigate] ML score: {ml_score['probability']:.0%} ({ml_score['risk_tier']})")
+        await manager.broadcast({
+            "type": "agent_status",
+            "data": {
+                "stage": "investigation",
+                "message": f"ML model: {ml_score['risk_tier']} risk ({ml_score['probability']:.0%}) — launching agents...",
+            },
+        })
+
+        agent_findings = await run_parallel_investigation(vessel_info, progress_callback=progress)
+
+        report = await generate_investigation_report(
+            vessel_info, ml_score, agent_findings, progress_callback=progress
+        )
+
+        await manager.broadcast({"type": "report", "data": report})
+        print(f"[Investigate] Report broadcast for MMSI {mmsi}")
+
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        await manager.broadcast({
+            "type": "agent_status",
+            "data": {"stage": "error", "message": f"Investigation failed for MMSI {mmsi}"},
+        })
+
+
+@app.post("/investigate")
+async def investigate(body: InvestigationRequest):
+    asyncio.create_task(_run_investigation(
+        body.mmsi.strip(), body.vessel_name.strip(), body.flag_state.strip(), body.region.strip()
+    ))
+    return {"status": "started", "mmsi": body.mmsi}
+
 
 @app.post("/mode")
 async def switch_mode(body: ModeRequest):

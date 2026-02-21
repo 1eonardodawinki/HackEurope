@@ -193,9 +193,12 @@ function RegionsTab({ hotzones, thresholds, onOpenReport, hasReport }) {
 
 function AgentsTab({ agentStatus }) {
   const stages = [
-    { id: 'evaluator', label: 'Evaluator', desc: 'Assesses incidents using news & commodity data' },
-    { id: 'reporter', label: 'Reporter', desc: 'Generates structured intelligence report' },
-    { id: 'critic', label: 'Critic', desc: 'Adversarial review — forces high-quality output' },
+    { id: 'news_agent',         label: 'News Agent',        desc: 'Searches vessel news, incidents & AIS anomalies' },
+    { id: 'sanctions_agent',    label: 'Sanctions Agent',   desc: 'Checks OFAC / EU / UN sanctions exposure' },
+    { id: 'geopolitical_agent', label: 'Geopolitical Agent',desc: 'Assesses regional threat & state-actor context' },
+    { id: 'evaluator',          label: 'Evaluator',         desc: 'Scores AIS incidents (incident-flow only)' },
+    { id: 'reporter',           label: 'Reporter',          desc: 'Generates structured intelligence report' },
+    { id: 'critic',             label: 'Critic',            desc: 'Adversarial review — exits early when approved' },
   ]
 
   return (
@@ -205,7 +208,11 @@ function AgentsTab({ agentStatus }) {
       </div>
 
       {stages.map(stage => {
-        const isActive = agentStatus.stage === stage.id
+        const isActive = agentStatus.stage === stage.id ||
+          (stage.id === 'reporter' && agentStatus.stage === 'reporter_stream') ||
+          (stage.id === 'news_agent' && agentStatus.stage === 'investigation') ||
+          (stage.id === 'sanctions_agent' && agentStatus.stage === 'investigation') ||
+          (stage.id === 'geopolitical_agent' && agentStatus.stage === 'investigation')
         return (
           <div key={stage.id} style={{
             ...styles.card,
@@ -244,10 +251,13 @@ function AgentsTab({ agentStatus }) {
       <div style={{ ...styles.card, marginTop: 4 }}>
         <div style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5, marginBottom: 8 }}>PIPELINE FLOW</div>
         <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 2 }}>
-          1. Evaluator scores each incident (0–100%)<br/>
-          2. When 3+ incidents detected — Reporter generates report<br/>
-          3. Critic reviews adversarially (up to 3 rounds)<br/>
-          4. Approved report delivered to analysts
+          <span style={{ color: 'var(--accent)' }}>MMSI INVESTIGATION</span><br/>
+          News · Sanctions · Geo agents run in parallel<br/>
+          → Reporter synthesises findings → Critic reviews<br/>
+          <br/>
+          <span style={{ color: 'var(--text3)' }}>AIS INCIDENT FLOW</span><br/>
+          Evaluator scores incidents → Reporter at threshold<br/>
+          → Critic reviews (exits early when approved)
         </div>
       </div>
     </div>
@@ -255,25 +265,33 @@ function AgentsTab({ agentStatus }) {
 }
 
 const LOG_COLORS = {
-  incident:  'var(--warning)',
-  eval:      'var(--accent)',
-  agent:     'var(--green)',
-  critic:    'var(--warning)',
-  threshold: 'var(--danger)',
-  report:    'var(--green)',
-  error:     'var(--danger)',
-  system:    'var(--text3)',
+  incident:           'var(--warning)',
+  eval:               'var(--accent)',
+  agent:              'var(--green)',
+  critic:             'var(--warning)',
+  threshold:          'var(--danger)',
+  report:             'var(--green)',
+  error:              'var(--danger)',
+  system:             'var(--text3)',
+  news_agent:         'var(--accent)',
+  sanctions_agent:    'var(--warning)',
+  geopolitical_agent: 'var(--danger)',
+  investigation:      'var(--green)',
 }
 
 const LOG_ICONS = {
-  incident:  '⚑',
-  eval:      '◈',
-  agent:     '▶',
-  critic:    '◎',
-  threshold: '!',
-  report:    '★',
-  error:     '✕',
-  system:    '·',
+  incident:           '⚑',
+  eval:               '◈',
+  agent:              '▶',
+  critic:             '◎',
+  threshold:          '!',
+  report:             '★',
+  error:              '✕',
+  system:             '·',
+  news_agent:         '◈',
+  sanctions_agent:    '⚑',
+  geopolitical_agent: '◉',
+  investigation:      '▶',
 }
 
 function LogTab({ logs, onOpenReport, hasReport }) {
