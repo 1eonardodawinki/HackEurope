@@ -15,6 +15,12 @@ export default function App() {
   const [showReport, setShowReport] = useState(false)
   const [connected, setConnected] = useState(false)
   const [selectedShip, setSelectedShip] = useState(null)
+  const [editZones, setEditZones] = useState(false)
+  const [zoneOverrides, setZoneOverrides] = useState({})
+
+  const handleZoneChange = useCallback((name, geo) => {
+    setZoneOverrides(prev => ({ ...prev, [name]: geo }))
+  }, [])
 
   const incidentIds = useRef(new Set())
 
@@ -86,6 +92,16 @@ export default function App() {
           {agentStatus.stage !== 'idle' && agentStatus.stage !== 'critic_result' && (
             <AgentBadge status={agentStatus} />
           )}
+          <button
+            style={{
+              ...styles.editZonesBtn,
+              borderColor: editZones ? 'rgba(255,255,255,0.3)' : 'var(--border)',
+              color: editZones ? 'var(--text)' : 'var(--text3)',
+            }}
+            onClick={() => setEditZones(v => !v)}
+          >
+            {editZones ? 'DONE' : 'EDIT ZONES'}
+          </button>
         </div>
       </header>
 
@@ -98,6 +114,9 @@ export default function App() {
             incidents={incidents}
             selectedShip={selectedShip}
             onSelectShip={setSelectedShip}
+            editZones={editZones}
+            zoneOverrides={zoneOverrides}
+            onZoneChange={handleZoneChange}
           />
         </div>
 
@@ -164,4 +183,9 @@ const styles = {
   stat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
   headerRight: { display: 'flex', alignItems: 'center', gap: 12 },
   liveIndicator: { display: 'flex', alignItems: 'center', gap: 7 },
+  editZonesBtn: {
+    background: 'transparent', border: '1px solid', cursor: 'pointer',
+    fontSize: 9, letterSpacing: 2, fontFamily: 'inherit',
+    padding: '4px 10px', transition: 'color 0.15s, border-color 0.15s',
+  },
 }
