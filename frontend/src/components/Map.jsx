@@ -9,20 +9,65 @@ const STATUS_COLORS = {
   suspicious: '#ff3355',
 }
 
-export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip }) {
+function circlePolygon(lon, lat, radius, n = 64) {
+  const coords = []
+  for (let i = 0; i <= n; i++) {
+    const angle = (i / n) * 2 * Math.PI
+    coords.push([
+      lon + (radius * Math.cos(angle)) / Math.cos((lat * Math.PI) / 180),
+      lat + radius * Math.sin(angle),
+    ])
+  }
+  return [coords]
+}
+
+function getZoneGeo(name, hz, overrides) {
+  const ov = overrides?.[name]
+  if (ov) return ov
+  return {
+    centerLon: (hz.min_lon + hz.max_lon) / 2,
+    centerLat: (hz.min_lat + hz.max_lat) / 2,
+    radius: Math.max((hz.max_lon - hz.min_lon) / 2, (hz.max_lat - hz.min_lat) / 2),
+  }
+}
+
+function buildHotzoneFeatures(hotzones, overrides) {
+  return Object.entries(hotzones).map(([name, hz]) => {
+    const geo = getZoneGeo(name, hz, overrides)
+    return {
+      type: 'Feature',
+      properties: { name, color: hz.color },
+      geometry: { type: 'Polygon', coordinates: circlePolygon(geo.centerLon, geo.centerLat, geo.radius) },
+    }
+  })
+}
+
+export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
-  const shipsData = useRef({})        // mmsi → full ship object (for click lookup)
-  const incidentMarkers = useRef({})  // id → mapboxgl.Marker
+  const shipsData = useRef({})
+  const incidentMarkers = useRef({})
+  const resizeMarkers = useRef({})
+  const isDraggingMarker = useRef(null)
+
+  // Refs to avoid stale closures in Mapbox event handlers
+  const editZonesRef = useRef(editZones)
+  const zoneOverridesRef = useRef(zoneOverrides)
+  const onZoneChangeRef = useRef(onZoneChange)
+  const hotzonesRef = useRef(hotzones)
+
+  useEffect(() => { editZonesRef.current = editZones }, [editZones])
+  useEffect(() => { zoneOverridesRef.current = zoneOverrides }, [zoneOverrides])
+  useEffect(() => { onZoneChangeRef.current = onZoneChange }, [onZoneChange])
+  useEffect(() => { hotzonesRef.current = hotzones }, [hotzones])
+
   const [mapReady, setMapReady] = useState(false)
   const [noToken, setNoToken] = useState(false)
+  const [typeFilter, setTypeFilter] = useState('all')
 
   // ── Init map ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!MAPBOX_TOKEN) {
-      setNoToken(true)
-      return
-    }
+    if (!MAPBOX_TOKEN) { setNoToken(true); return }
 
     mapboxgl.accessToken = MAPBOX_TOKEN
 
@@ -36,7 +81,6 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     })
 
     map.current.on('load', () => {
-      // ── Atmosphere / globe style ──
       map.current.setFog({
         color: 'rgb(4, 10, 26)',
         'high-color': 'rgb(8, 20, 50)',
@@ -44,10 +88,9 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         'star-intensity': 0.8,
       })
 
-      // ── Hotzone polygons ──
       addHotzoneLayers()
 
-      // ── Ship trail layer (GeoJSON lines) ──
+      // ── Ship trail layer ──
       map.current.addSource('ship-trails', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -56,24 +99,20 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         id: 'ship-trails',
         type: 'line',
         source: 'ship-trails',
-        paint: {
-          'line-color': ['get', 'color'],
-          'line-width': 1.5,
-          'line-opacity': 0.5,
-        },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.5 },
       })
 
-      // ── Ship arrow icon (triangle pointing north = 0°, rotated by COG) ──
+      // ── Ship arrow icon ──
       const sz = 24
       const cv = document.createElement('canvas')
       cv.width = sz; cv.height = sz
       const cx = cv.getContext('2d')
       cx.fillStyle = 'white'
       cx.beginPath()
-      cx.moveTo(sz / 2, 1)          // tip
-      cx.lineTo(sz - 3, sz - 3)     // bottom-right
-      cx.lineTo(sz / 2, sz * 0.62)  // notch (arrow shape)
-      cx.lineTo(3, sz - 3)          // bottom-left
+      cx.moveTo(sz / 2, 1)
+      cx.lineTo(sz - 3, sz - 3)
+      cx.lineTo(sz / 2, sz * 0.62)
+      cx.lineTo(3, sz - 3)
       cx.closePath()
       cx.fill()
       map.current.addImage('ship-arrow', cx.getImageData(0, 0, sz, sz), { sdf: true })
@@ -83,8 +122,6 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
-
-      // Selection ring (below the ship icon)
       map.current.addLayer({
         id: 'ships-selected',
         type: 'circle',
@@ -98,8 +135,6 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
           'circle-stroke-opacity': 0.7,
         },
       })
-
-      // Ship triangles
       map.current.addLayer({
         id: 'ships',
         type: 'symbol',
@@ -113,28 +148,52 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
           'icon-size': 0.7,
         },
         paint: {
-          'icon-color': [
-            'match', ['get', 'status'],
-            'suspicious', '#ff3355',
-            'dark', '#444444',
-            '#ffffff',
-          ],
+          'icon-color': ['match', ['get', 'status'], 'suspicious', '#ff3355', 'dark', '#444444', '#ffffff'],
           'icon-opacity': ['match', ['get', 'status'], 'dark', 0.35, 1.0],
         },
       })
 
-      // Click to select ship
       map.current.on('click', 'ships', (e) => {
         if (e.features.length > 0) {
           const mmsi = e.features[0].properties.mmsi
           onSelectShip(shipsData.current[mmsi] || null)
         }
       })
-      map.current.on('mouseenter', 'ships', () => {
-        map.current.getCanvas().style.cursor = 'pointer'
+      map.current.on('mouseenter', 'ships', () => { map.current.getCanvas().style.cursor = 'pointer' })
+      map.current.on('mouseleave', 'ships', () => { map.current.getCanvas().style.cursor = '' })
+
+      // ── Zone drag-to-move ──
+      let dragging = null
+
+      map.current.on('mousedown', 'hotzone-fill', (e) => {
+        if (!editZonesRef.current) return
+        e.preventDefault()
+        map.current.dragPan.disable()
+        const name = e.features[0].properties.name
+        const hz = hotzonesRef.current[name]
+        if (!hz) return
+        const geo = getZoneGeo(name, hz, zoneOverridesRef.current)
+        dragging = { name, startLng: e.lngLat.lng, startLat: e.lngLat.lat, startCenter: { ...geo } }
       })
-      map.current.on('mouseleave', 'ships', () => {
-        map.current.getCanvas().style.cursor = ''
+
+      map.current.on('mousemove', (e) => {
+        if (!dragging) return
+        onZoneChangeRef.current(dragging.name, {
+          centerLon: dragging.startCenter.centerLon + (e.lngLat.lng - dragging.startLng),
+          centerLat: dragging.startCenter.centerLat + (e.lngLat.lat - dragging.startLat),
+          radius: dragging.startCenter.radius,
+        })
+      })
+
+      map.current.on('mouseup', () => {
+        if (dragging) { dragging = null; map.current.dragPan.enable() }
+      })
+
+      map.current.on('mouseenter', 'hotzone-fill', () => {
+        if (editZonesRef.current) map.current.getCanvas().style.cursor = 'move'
+      })
+      map.current.on('mouseleave', 'hotzone-fill', () => {
+        if (!dragging) map.current.getCanvas().style.cursor = ''
       })
 
       setMapReady(true)
@@ -142,96 +201,95 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
 
     return () => {
       Object.values(incidentMarkers.current).forEach(m => m.remove())
+      Object.values(resizeMarkers.current).forEach(m => m.remove())
       map.current?.remove()
     }
   }, [])
 
   function addHotzoneLayers() {
-    const features = Object.entries(hotzones).map(([name, hz]) => ({
-      type: 'Feature',
-      properties: { name, color: hz.color },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [hz.min_lon, hz.min_lat],
-          [hz.max_lon, hz.min_lat],
-          [hz.max_lon, hz.max_lat],
-          [hz.min_lon, hz.max_lat],
-          [hz.min_lon, hz.min_lat],
-        ]],
-      },
-    }))
-
+    const features = buildHotzoneFeatures(hotzonesRef.current, zoneOverridesRef.current)
     if (features.length === 0) return
-
-    map.current.addSource('hotzones', {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features },
-    })
-    map.current.addLayer({
-      id: 'hotzone-fill',
-      type: 'fill',
-      source: 'hotzones',
-      paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.08 },
-    })
-    map.current.addLayer({
-      id: 'hotzone-border',
-      type: 'line',
-      source: 'hotzones',
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-width': 1.5,
-        'line-opacity': 0.6,
-        'line-dasharray': [4, 3],
-      },
-    })
+    map.current.addSource('hotzones', { type: 'geojson', data: { type: 'FeatureCollection', features } })
+    map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.05 } })
+    map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 0.8, 'line-opacity': 0.45, 'line-dasharray': [4, 3] } })
   }
 
-  // ── Update hotzones when data arrives ─────────────────────────────────────
+  // ── Update hotzone source when data or overrides change ───────────────────
   useEffect(() => {
-    if (!mapReady || !map.current || Object.keys(hotzones).length === 0) return
-    if (map.current.getSource('hotzones')) return  // already added
+    if (!mapReady || !map.current) return
+    const src = map.current.getSource('hotzones')
+    if (!src) {
+      if (Object.keys(hotzones).length === 0) return
+      const features = buildHotzoneFeatures(hotzones, zoneOverrides)
+      map.current.addSource('hotzones', { type: 'geojson', data: { type: 'FeatureCollection', features } })
+      map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.05 } })
+      map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 0.8, 'line-opacity': 0.45, 'line-dasharray': [4, 3] } })
+    } else {
+      src.setData({ type: 'FeatureCollection', features: buildHotzoneFeatures(hotzones, zoneOverrides) })
+    }
+  }, [mapReady, hotzones, zoneOverrides])
 
-    const features = Object.entries(hotzones).map(([name, hz]) => ({
-      type: 'Feature',
-      properties: { name, color: hz.color },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [hz.min_lon, hz.min_lat],
-          [hz.max_lon, hz.min_lat],
-          [hz.max_lon, hz.max_lat],
-          [hz.min_lon, hz.max_lat],
-          [hz.min_lon, hz.min_lat],
-        ]],
-      },
-    }))
+  // ── Create / destroy resize handles when edit mode toggles ────────────────
+  useEffect(() => {
+    if (!mapReady) return
+    Object.values(resizeMarkers.current).forEach(m => m.remove())
+    resizeMarkers.current = {}
+    if (!editZones) return
 
-    map.current.addSource('hotzones', { type: 'geojson', data: { type: 'FeatureCollection', features } })
-    map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.08 } })
-    map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.6, 'line-dasharray': [4, 3] } })
-  }, [mapReady, hotzones])
+    Object.entries(hotzones).forEach(([name, hz]) => {
+      const el = document.createElement('div')
+      el.style.cssText = 'width:10px;height:10px;background:white;border-radius:50%;cursor:ew-resize;border:1px solid rgba(0,0,0,0.4);box-shadow:0 0 0 1px rgba(255,255,255,0.3);'
+
+      const geo = getZoneGeo(name, hz, zoneOverridesRef.current)
+      const edgeLon = geo.centerLon + geo.radius / Math.cos((geo.centerLat * Math.PI) / 180)
+
+      const marker = new mapboxgl.Marker({ element: el, draggable: true })
+        .setLngLat([edgeLon, geo.centerLat])
+        .addTo(map.current)
+
+      marker.on('dragstart', () => { isDraggingMarker.current = name })
+      marker.on('drag', () => {
+        const lngLat = marker.getLngLat()
+        const cur = getZoneGeo(name, hotzonesRef.current[name], zoneOverridesRef.current)
+        const newRadius = Math.max(0.5, Math.abs(lngLat.lng - cur.centerLon) * Math.cos((cur.centerLat * Math.PI) / 180))
+        onZoneChangeRef.current(name, { ...cur, radius: newRadius })
+      })
+      marker.on('dragend', () => { isDraggingMarker.current = null })
+
+      resizeMarkers.current[name] = marker
+    })
+  }, [editZones, mapReady, hotzones])
+
+  // ── Sync resize handle positions when overrides change ────────────────────
+  useEffect(() => {
+    if (!mapReady || !editZones) return
+    Object.entries(hotzones).forEach(([name, hz]) => {
+      if (isDraggingMarker.current === name) return
+      const marker = resizeMarkers.current[name]
+      if (!marker) return
+      const geo = getZoneGeo(name, hz, zoneOverrides)
+      const edgeLon = geo.centerLon + geo.radius / Math.cos((geo.centerLat * Math.PI) / 180)
+      marker.setLngLat([edgeLon, geo.centerLat])
+    })
+  }, [zoneOverrides, editZones, mapReady, hotzones])
 
   // ── Update ship positions + trails ────────────────────────────────────────
   useEffect(() => {
     if (!mapReady || !map.current) return
-
-    // Keep full ship data for click lookup
     ships.forEach(s => { shipsData.current[s.mmsi] = s })
 
-    const shipFeatures = ships.map(ship => ({
+    const MAIN_TYPES = ['tanker', 'cargo', 'passenger', 'fishing']
+    const visibleShips = typeFilter === 'all' ? ships
+      : typeFilter === 'other' ? ships.filter(s => !MAIN_TYPES.includes(s.type))
+      : ships.filter(s => s.type === typeFilter)
+
+    const shipFeatures = visibleShips.map(ship => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [ship.lon, ship.lat] },
-      properties: {
-        mmsi: ship.mmsi,
-        name: ship.name,
-        status: ship.status,
-        in_hotzone: ship.in_hotzone,
-        cog: ship.cog ?? 0,
-      },
+      properties: { mmsi: ship.mmsi, name: ship.name, status: ship.status, in_hotzone: ship.in_hotzone, cog: ship.cog ?? 0 },
     }))
 
-    const trailFeatures = ships
+    const trailFeatures = visibleShips
       .filter(s => s.trail && s.trail.length > 1)
       .map(ship => ({
         type: 'Feature',
@@ -245,7 +303,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     if (map.current.getSource('ship-trails')) {
       map.current.getSource('ship-trails').setData({ type: 'FeatureCollection', features: trailFeatures })
     }
-  }, [ships, mapReady])
+  }, [ships, mapReady, typeFilter])
 
   // ── Update selection ring ─────────────────────────────────────────────────
   useEffect(() => {
@@ -260,17 +318,12 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     if (!mapReady || !map.current) return
 
     const activeIds = new Set(incidents.map(i => i.id))
-
     for (const id of Object.keys(incidentMarkers.current)) {
-      if (!activeIds.has(id)) {
-        incidentMarkers.current[id].remove()
-        delete incidentMarkers.current[id]
-      }
+      if (!activeIds.has(id)) { incidentMarkers.current[id].remove(); delete incidentMarkers.current[id] }
     }
 
     incidents.forEach(incident => {
       if (incidentMarkers.current[incident.id]) return
-
       const el = document.createElement('div')
       el.className = `incident-marker ${incident.severity === 'high' ? 'high' : ''}`
       el.title = `Incident: ${incident.type}`
@@ -300,19 +353,18 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
   // ── Fly to selected ship ──────────────────────────────────────────────────
   useEffect(() => {
     if (!mapReady || !selectedShip || !map.current) return
-    map.current.flyTo({ center: [selectedShip.lon, selectedShip.lat], zoom: 7, duration: 1200 })
+    const currentZoom = map.current.getZoom()
+    map.current.flyTo({ center: [selectedShip.lon, selectedShip.lat], zoom: Math.max(currentZoom, 7), duration: 1200 })
   }, [selectedShip, mapReady])
 
   if (noToken) {
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 16, background: 'var(--bg)' }}>
-        <div style={{ fontSize: 32 }}>🗺️</div>
         <div style={{ color: 'var(--warning)', fontSize: 14, fontWeight: 600 }}>No Mapbox Token</div>
         <div style={{ color: 'var(--text2)', fontSize: 12, textAlign: 'center', maxWidth: 340, lineHeight: 1.6 }}>
           Add <code style={{ color: 'var(--accent)' }}>VITE_MAPBOX_TOKEN=your_token</code> to
-          <code style={{ color: 'var(--accent)' }}> frontend/.env</code>.<br />
-          Get a free token at <span style={{ color: 'var(--accent2)' }}>mapbox.com</span>
+          <code style={{ color: 'var(--accent)' }}> frontend/.env</code>.
         </div>
       </div>
     )
@@ -322,7 +374,19 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-      {/* Ship tooltip overlay */}
+      {/* Type filter bar */}
+      <div style={styles.filterBar}>
+        {['all', 'tanker', 'cargo', 'passenger', 'fishing', 'other'].map(t => (
+          <button key={t} onClick={() => setTypeFilter(t)} style={{
+            ...styles.filterBtn,
+            ...(typeFilter === t ? styles.filterBtnActive : {}),
+          }}>
+            {t.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* Ship tooltip */}
       {selectedShip && (
         <div style={styles.shipTooltip} className="animate-sweep-in">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -331,18 +395,23 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
               onClick={() => onSelectShip(null)}>✕</span>
           </div>
           <Row label="MMSI" value={selectedShip.mmsi} />
-          <Row label="STATUS" value={selectedShip.status.toUpperCase()}
-            valueColor={STATUS_COLORS[selectedShip.status]} />
+          <Row label="STATUS" value={selectedShip.status.toUpperCase()} valueColor={STATUS_COLORS[selectedShip.status]} />
+          <Row label="TYPE" value={(selectedShip.type || 'unknown').toUpperCase()} />
           <Row label="POSITION" value={`${selectedShip.lat.toFixed(4)}°, ${selectedShip.lon.toFixed(4)}°`} />
           <Row label="SPEED" value={`${selectedShip.sog} kn`} />
           <Row label="COURSE" value={`${selectedShip.cog}°`} />
-          {selectedShip.in_hotzone && (
-            <Row label="HOTZONE" value={selectedShip.in_hotzone} valueColor="var(--warning)" />
-          )}
+          {selectedShip.in_hotzone && <Row label="HOTZONE" value={selectedShip.in_hotzone} valueColor="var(--warning)" />}
         </div>
       )}
 
-      {/* Map legend */}
+      {/* Edit mode hint */}
+      {editZones && (
+        <div style={styles.editHint}>
+          DRAG ZONE TO MOVE &nbsp;·&nbsp; DRAG HANDLE TO RESIZE
+        </div>
+      )}
+
+      {/* Legend */}
       <div style={styles.legend}>
         <LegendItem color="var(--accent)" label="Active" />
         <LegendItem color="var(--danger)" label="Suspicious" />
@@ -378,11 +447,32 @@ function LegendItem({ color, label, dashed }) {
 }
 
 const styles = {
+  filterBar: {
+    position: 'absolute', top: 16, right: 16,
+    display: 'flex', gap: 4, zIndex: 10,
+  },
+  filterBtn: {
+    padding: '5px 10px',
+    background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    color: 'var(--text3)', fontSize: 9, letterSpacing: 1.5,
+    cursor: 'pointer', fontFamily: 'inherit',
+    transition: 'color 0.15s, border-color 0.15s',
+  },
+  filterBtnActive: {
+    color: 'var(--text)', borderColor: 'rgba(255,255,255,0.3)',
+  },
   shipTooltip: {
-    position: 'absolute', top: 16, left: 16,
+    position: 'absolute', top: 50, left: 16,
     background: 'rgba(8,8,8,0.95)', backdropFilter: 'blur(12px)',
     border: '1px solid rgba(255,255,255,0.1)', padding: '12px 14px',
     minWidth: 210, zIndex: 10,
+  },
+  editHint: {
+    position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
+    background: 'rgba(8,8,8,0.9)', border: '1px solid rgba(255,255,255,0.12)',
+    padding: '6px 14px', fontSize: 9, color: 'var(--text3)', letterSpacing: 2,
+    zIndex: 10, pointerEvents: 'none',
   },
   legend: {
     position: 'absolute', bottom: 32, left: 16,
