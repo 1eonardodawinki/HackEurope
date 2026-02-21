@@ -25,7 +25,13 @@ export default function App() {
     setZoneOverrides(prev => ({ ...prev, [name]: geo }))
   }, [])
 
+  const [logs, setLogs] = useState([])
   const incidentIds = useRef(new Set())
+
+  const addLog = useCallback((entry) => {
+    const ts = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    setLogs(prev => [{ ...entry, ts }, ...prev].slice(0, 300))
+  }, [])
 
   const addIncident = useCallback((incident) => {
     if (incidentIds.current.has(incident.id)) return
@@ -46,7 +52,6 @@ export default function App() {
       setDemoMode(!!data.demo_mode)
       setHasLiveKey(!!data.has_live_key)
       setModeSwitching(false)
-      // Reset transient state for the new session
       setShips([])
       setIncidents([])
       setEvaluations([])
@@ -54,10 +59,15 @@ export default function App() {
       setReport(null)
       setShowReport(false)
       setAgentStatus({ stage: 'idle', message: 'Monitoring...' })
+      setLogs([])
       incidentIds.current.clear()
+      addLog({ kind: 'system', text: `Switched to ${data.demo_mode ? 'DEMO' : 'LIVE'} mode` })
     },
     onShips: (data) => setShips(data),
-    onIncident: (data) => addIncident(data),
+    onIncident: (data) => {
+      addIncident(data)
+      addLog({ kind: 'incident', text: `${data.type === 'ais_dropout' ? 'AIS DROPOUT' : 'PROXIMITY'} — ${data.ship_name || `MMSI ${data.mmsi}`} [${data.region}]`, severity: data.severity })
+    },
     onEvaluation: (data) => {
       setEvaluations(prev => [data, ...prev].slice(0, 100))
       setIncidents(prev => prev.map(inc =>
@@ -65,14 +75,28 @@ export default function App() {
           ? { ...inc, confidence_score: data.confidence_score, incident_type: data.incident_type, commodities_affected: data.commodities_affected }
           : inc
       ))
+      addLog({ kind: 'eval', text: `Evaluator: ${data.incident_type || 'unknown'} — ${data.confidence_score}% confidence [${data.region}]` })
     },
-    onAgentStatus: (data) => setAgentStatus(data),
+    onAgentStatus: (data) => {
+      setAgentStatus(data)
+      if (data.stage === 'error') {
+        addLog({ kind: 'error', text: `Pipeline error: ${data.message}` })
+      } else if (data.stage !== 'idle' && data.stage !== 'critic_result') {
+        addLog({ kind: 'agent', text: data.message || data.stage, stage: data.stage, round: data.round })
+      } else if (data.stage === 'critic_result') {
+        addLog({ kind: 'critic', text: `Critic round ${data.round}: ${data.approved ? '✓ APPROVED' : '✗ REVISE'} (quality ${data.quality_score}/100)`, approved: data.approved })
+      }
+    },
     onThresholdUpdate: (data) => {
       setThresholds(prev => ({ ...prev, [data.region]: data }))
+      if (data.incident_count >= data.threshold) {
+        addLog({ kind: 'threshold', text: `Threshold reached: ${data.incident_count}/${data.threshold} incidents in ${data.region} — launching reporter` })
+      }
     },
     onReport: (data) => {
       setReport(data)
       setShowReport(true)
+      addLog({ kind: 'report', text: `Report ready: "${data.title || 'Intelligence Report'}" — ${data.overall_confidence || '?'}% confidence` })
     },
   })
 
@@ -155,6 +179,7 @@ export default function App() {
           thresholds={thresholds}
           agentStatus={agentStatus}
           hotzones={hotzones}
+          logs={logs}
           onOpenReport={() => setShowReport(true)}
           hasReport={!!report}
         />
