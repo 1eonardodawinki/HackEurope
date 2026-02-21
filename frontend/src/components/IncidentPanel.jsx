@@ -11,8 +11,10 @@ const SEVERITY_COLORS = {
   low: 'var(--text3)',
 }
 
+const TAB_LABELS = { incidents: 'INC', regions: 'ZONES', agents: 'AGENTS', log: 'LOG' }
+
 export default function IncidentPanel({
-  incidents, thresholds, agentStatus, hotzones, onOpenReport, hasReport
+  incidents, thresholds, agentStatus, hotzones, logs, onOpenReport, hasReport
 }) {
   const [activeTab, setActiveTab] = useState('incidents')
 
@@ -20,11 +22,11 @@ export default function IncidentPanel({
     <div style={styles.panel}>
       {/* Tabs */}
       <div style={styles.tabs}>
-        {['incidents', 'regions', 'agents'].map(tab => (
+        {Object.entries(TAB_LABELS).map(([tab, label]) => (
           <button key={tab}
             style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
             onClick={() => setActiveTab(tab)}>
-            {tab.toUpperCase()}
+            {label}
           </button>
         ))}
       </div>
@@ -34,6 +36,7 @@ export default function IncidentPanel({
         <RegionsTab hotzones={hotzones} thresholds={thresholds} onOpenReport={onOpenReport} hasReport={hasReport} />
       )}
       {activeTab === 'agents' && <AgentsTab agentStatus={agentStatus} />}
+      {activeTab === 'log' && <LogTab logs={logs || []} onOpenReport={onOpenReport} hasReport={hasReport} />}
 
       {hasReport && (
         <button style={styles.reportCta} onClick={onOpenReport}>
@@ -247,6 +250,75 @@ function AgentsTab({ agentStatus }) {
           4. Approved report delivered to analysts
         </div>
       </div>
+    </div>
+  )
+}
+
+const LOG_COLORS = {
+  incident:  'var(--warning)',
+  eval:      'var(--accent)',
+  agent:     'var(--green)',
+  critic:    'var(--warning)',
+  threshold: 'var(--danger)',
+  report:    'var(--green)',
+  error:     'var(--danger)',
+  system:    'var(--text3)',
+}
+
+const LOG_ICONS = {
+  incident:  '⚑',
+  eval:      '◈',
+  agent:     '▶',
+  critic:    '◎',
+  threshold: '!',
+  report:    '★',
+  error:     '✕',
+  system:    '·',
+}
+
+function LogTab({ logs, onOpenReport, hasReport }) {
+  if (logs.length === 0) {
+    return (
+      <div style={styles.empty}>
+        <div style={{ color: 'var(--text3)', fontSize: 11, letterSpacing: 1 }}>AWAITING EVENTS</div>
+        <div style={{ color: 'var(--text3)', fontSize: 9, letterSpacing: 0.5, marginTop: 6, opacity: 0.6 }}>
+          Pipeline activity will appear here
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={styles.scrollArea}>
+      {hasReport && (
+        <button style={{ ...styles.viewReportBtn, marginBottom: 6 }} onClick={onOpenReport}>
+          VIEW INTELLIGENCE REPORT ★
+        </button>
+      )}
+      {logs.map((entry, i) => {
+        const color = LOG_COLORS[entry.kind] || 'var(--text3)'
+        const icon = LOG_ICONS[entry.kind] || '·'
+        return (
+          <div key={i} style={{
+            display: 'flex', gap: 8, alignItems: 'flex-start',
+            padding: '7px 10px',
+            borderBottom: '1px solid var(--border)',
+            background: entry.kind === 'report' ? 'rgba(0,229,255,0.03)'
+              : entry.kind === 'error' ? 'rgba(255,51,85,0.04)' : 'transparent',
+          }}>
+            <span style={{ fontSize: 10, color, flexShrink: 0, marginTop: 1, width: 10, textAlign: 'center' }}>{icon}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10, color: color === 'var(--text3)' ? 'var(--text3)' : 'var(--text2)', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                {entry.text}
+              </div>
+              {entry.round && (
+                <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 2 }}>round {entry.round}</div>
+              )}
+            </div>
+            <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0, marginTop: 1 }}>{entry.ts}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
