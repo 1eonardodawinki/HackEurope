@@ -23,6 +23,7 @@ import websockets
 from config import (
     AISSTREAM_API_KEY, DEMO_MODE, HOTZONES,
     DEMO_SHIP_COUNT, DEMO_INCIDENT_DELAY_SECONDS, DEMO_INCIDENT_INTERVAL_SECONDS,
+    AIS_DROPOUT_MINUTES, PROXIMITY_DISTANCE_NM, PROXIMITY_DURATION_MINUTES,
 )
 
 # ── Utility ───────────────────────────────────────────────────────────────────
@@ -109,9 +110,10 @@ GHOST_SHIP = {
 
 
 class AISMonitor:
-    def __init__(self, on_ship_update: Callable, on_incident: Callable):
+    def __init__(self, on_ship_update: Callable, on_incident: Callable, demo_mode: bool | None = None):
         self.on_ship_update = on_ship_update   # async callback(ships: list[dict])
         self.on_incident = on_incident         # async callback(incident: dict)
+        self._demo_mode = demo_mode if demo_mode is not None else DEMO_MODE
 
         # State
         self._ships: dict[int, dict] = {}     # mmsi → ship dict
@@ -120,7 +122,7 @@ class AISMonitor:
         self._incident_count = 0
 
         # Initialise demo ships
-        if DEMO_MODE:
+        if self._demo_mode:
             for spec in DEMO_SHIPS_SPEC:
                 self._ships[spec["mmsi"]] = {**spec, "trail": [], "status": "active", "in_hotzone": in_any_hotzone(spec["lat"], spec["lon"])}
 
@@ -128,7 +130,7 @@ class AISMonitor:
 
     async def start(self):
         self._running = True
-        if DEMO_MODE:
+        if self._demo_mode:
             await asyncio.gather(
                 self._demo_movement_loop(),
                 self._demo_incident_loop(),
@@ -137,6 +139,8 @@ class AISMonitor:
             await asyncio.gather(
                 self._live_ais_loop(),
                 self._live_broadcast_loop(),
+                self._live_dropout_detection_loop(),
+                self._live_proximity_detection_loop(),
             )
 
     def stop(self):
@@ -232,7 +236,27 @@ class AISMonitor:
                     })
 
             elif incident_num == 3:
-                # Third incident: Black Sea tanker goes dark
+                # Third incident: FALCON SPIRIT goes dark in Strait of Hormuz
+                # → this pushes Strait of Hormuz to 3 incidents, crossing INCIDENT_THRESHOLD
+                fs_ship = self._ships.get(311000004)  # FALCON SPIRIT
+                if fs_ship:
+                    fs_ship["status"] = "dark"
+                    await self.on_incident({
+                        "id": f"INC-{incident_num:03d}",
+                        "type": "ais_dropout",
+                        "mmsi": 311000004,
+                        "ship_name": fs_ship["name"],
+                        "lat": fs_ship["lat"],
+                        "lon": fs_ship["lon"],
+                        "region": "Strait of Hormuz",
+                        "duration_minutes": 31,
+                        "nearby_ships": [],
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "severity": "medium",
+                    })
+
+            elif incident_num == 4:
+                # Fourth incident: ODESSA SPIRIT goes dark in Black Sea
                 bs_ship = self._ships.get(212000002)
                 if bs_ship:
                     bs_ship["status"] = "dark"
@@ -253,13 +277,6 @@ class AISMonitor:
             await asyncio.sleep(DEMO_INCIDENT_INTERVAL_SECONDS)
 
     # ── Live AIS loop ─────────────────────────────────────────────────────────
-
-    async def _live_broadcast_loop(self):
-        """Broadcast current ship positions every 2 seconds (live mode)."""
-        while self._running:
-            if self._ships:
-                await self.on_ship_update(self.get_ships())
-            await asyncio.sleep(2)
 
     async def _live_ais_loop(self):
         """Connect to AISstream.io WebSocket and process real AIS data."""
@@ -291,6 +308,112 @@ class AISMonitor:
             except Exception as e:
                 print(f"[AIS] Connection error: {e}. Reconnecting in 10s...")
                 await asyncio.sleep(10)
+
+    async def _live_dropout_detection_loop(self):
+        """
+        Every 60 s, scan hotzone ships whose last_seen exceeds AIS_DROPOUT_MINUTES.
+        Marks them dark and fires an on_incident callback exactly once per dropout.
+        Ships recover automatically when a new PositionReport arrives (_process_ais_message
+        sets status back to "active").
+        """
+        while self._running:
+            await asyncio.sleep(60)
+            now = datetime.now(timezone.utc)
+            cutoff = now - timedelta(minutes=AIS_DROPOUT_MINUTES)
+
+            for mmsi, ship in list(self._ships.items()):
+                # Skip ships already flagged or outside hotzones
+                if ship.get("status") in ("dark", "suspicious"):
+                    continue
+                if not ship.get("in_hotzone"):
+                    continue
+
+                last_seen_str = ship.get("last_seen", "")
+                if not last_seen_str:
+                    continue
+                try:
+                    last_seen = datetime.fromisoformat(last_seen_str.replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+
+                if last_seen < cutoff:
+                    ship["status"] = "dark"
+                    self._incident_count += 1
+                    region = ship["in_hotzone"]
+                    duration_min = int((now - last_seen).total_seconds() / 60)
+                    print(f"[AIS] Dark ship detected: {ship.get('name')} (MMSI {mmsi}) in {region} — {duration_min} min silent")
+                    await self.on_incident({
+                        "id": f"INC-{self._incident_count:03d}",
+                        "type": "ais_dropout",
+                        "mmsi": mmsi,
+                        "ship_name": ship.get("name", f"MMSI-{mmsi}"),
+                        "lat": ship["lat"],
+                        "lon": ship["lon"],
+                        "region": region,
+                        "duration_minutes": duration_min,
+                        "nearby_ships": [],
+                        "timestamp": now.isoformat(),
+                        "severity": "medium",
+                    })
+
+    async def _live_proximity_detection_loop(self):
+        """
+        Every 30 s, check all pairs of active hotzone ships for proximity ≤ PROXIMITY_DISTANCE_NM.
+        When a pair stays within range for ≥ PROXIMITY_DURATION_MINUTES, fires one incident.
+        Pairs that separate are removed from tracking so they can be re-flagged if they meet again.
+        """
+        _close_since: dict[tuple, datetime] = {}   # pair → time first seen close
+        _flagged_pairs: set[tuple] = set()          # pairs already reported this session
+
+        while self._running:
+            await asyncio.sleep(30)
+            now = datetime.now(timezone.utc)
+
+            hotzone_ships = [
+                (mmsi, ship) for mmsi, ship in self._ships.items()
+                if ship.get("in_hotzone") and ship.get("status") == "active"
+            ]
+
+            current_close: set[tuple] = set()
+
+            for i, (mmsi1, ship1) in enumerate(hotzone_ships):
+                for mmsi2, ship2 in hotzone_ships[i + 1:]:
+                    pair = (min(mmsi1, mmsi2), max(mmsi1, mmsi2))
+                    if pair in _flagged_pairs:
+                        current_close.add(pair)
+                        continue
+
+                    dist = haversine_nm(ship1["lat"], ship1["lon"], ship2["lat"], ship2["lon"])
+
+                    if dist <= PROXIMITY_DISTANCE_NM:
+                        current_close.add(pair)
+                        if pair not in _close_since:
+                            _close_since[pair] = now
+                        else:
+                            duration_min = (now - _close_since[pair]).total_seconds() / 60
+                            if duration_min >= PROXIMITY_DURATION_MINUTES:
+                                _flagged_pairs.add(pair)
+                                self._incident_count += 1
+                                region = ship1.get("in_hotzone") or ship2.get("in_hotzone")
+                                print(f"[AIS] Proximity incident: {ship1.get('name')} ↔ {ship2.get('name')} in {region} — {dist:.2f} NM for {duration_min:.0f} min")
+                                await self.on_incident({
+                                    "id": f"INC-{self._incident_count:03d}",
+                                    "type": "ship_proximity",
+                                    "mmsi": mmsi1,
+                                    "ship_name": ship1.get("name", f"MMSI-{mmsi1}"),
+                                    "lat": ship1["lat"],
+                                    "lon": ship1["lon"],
+                                    "region": region,
+                                    "duration_minutes": int(duration_min),
+                                    "nearby_ships": [{"mmsi": mmsi2, "name": ship2.get("name", f"MMSI-{mmsi2}"), "distance_nm": round(dist, 3)}],
+                                    "timestamp": now.isoformat(),
+                                    "severity": "high",
+                                })
+
+            # Clean up pairs that separated so they can be re-flagged if they meet again
+            for pair in list(_close_since.keys()):
+                if pair not in current_close:
+                    del _close_since[pair]
 
     async def _live_broadcast_loop(self):
         """Broadcast all current ship positions every 5 seconds in live mode."""

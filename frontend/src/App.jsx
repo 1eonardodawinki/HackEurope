@@ -14,6 +14,9 @@ export default function App() {
   const [report, setReport] = useState(null)
   const [showReport, setShowReport] = useState(false)
   const [connected, setConnected] = useState(false)
+  const [demoMode, setDemoMode] = useState(false)
+  const [hasLiveKey, setHasLiveKey] = useState(false)
+  const [modeSwitching, setModeSwitching] = useState(false)
   const [selectedShip, setSelectedShip] = useState(null)
   const [editZones, setEditZones] = useState(false)
   const [zoneOverrides, setZoneOverrides] = useState({})
@@ -36,6 +39,22 @@ export default function App() {
     onInit: (data) => {
       setShips(data.ships || [])
       setHotzones(data.hotzones || {})
+      setDemoMode(!!data.demo_mode)
+      setHasLiveKey(!!data.has_live_key)
+    },
+    onModeChange: (data) => {
+      setDemoMode(!!data.demo_mode)
+      setHasLiveKey(!!data.has_live_key)
+      setModeSwitching(false)
+      // Reset transient state for the new session
+      setShips([])
+      setIncidents([])
+      setEvaluations([])
+      setThresholds({})
+      setReport(null)
+      setShowReport(false)
+      setAgentStatus({ stage: 'idle', message: 'Monitoring...' })
+      incidentIds.current.clear()
     },
     onShips: (data) => setShips(data),
     onIncident: (data) => addIncident(data),
@@ -56,6 +75,20 @@ export default function App() {
       setShowReport(true)
     },
   })
+
+  const switchMode = async (toDemo) => {
+    if (modeSwitching) return
+    setModeSwitching(true)
+    try {
+      await fetch('http://localhost:8000/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ demo: toDemo }),
+      })
+    } catch {
+      setModeSwitching(false)
+    }
+  }
 
   const totalIncidents = incidents.length
   const hotzoneShips = ships.filter(s => s.in_hotzone).length
@@ -79,16 +112,13 @@ export default function App() {
         </div>
 
         <div style={styles.headerRight}>
-          <div style={styles.liveIndicator}>
-            <div style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: connected ? 'var(--green)' : 'var(--danger)',
-              animation: 'pulse-dot 2s infinite',
-            }} />
-            <span style={{ fontSize: 10, color: connected ? 'var(--text2)' : 'var(--danger)', letterSpacing: 1.5 }}>
-              {connected ? 'LIVE' : 'RECONNECTING'}
-            </span>
-          </div>
+          <ModeIndicator
+            connected={connected}
+            demoMode={demoMode}
+            hasLiveKey={hasLiveKey}
+            switching={modeSwitching}
+            onSwitch={switchMode}
+          />
           {agentStatus.stage !== 'idle' && agentStatus.stage !== 'critic_result' && (
             <AgentBadge status={agentStatus} />
           )}
@@ -144,6 +174,50 @@ function Stat({ label, value, color }) {
         {value}
       </span>
       <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 2, marginTop: 2 }}>{label}</span>
+    </div>
+  )
+}
+
+function ModeIndicator({ connected, demoMode, hasLiveKey, switching, onSwitch }) {
+  const dotColor = !connected ? 'var(--danger)' : demoMode ? 'var(--danger)' : 'var(--green)'
+  const label = !connected ? 'RECONNECTING' : switching ? '...' : demoMode ? 'DEMO' : 'LIVE'
+  const labelColor = !connected ? 'var(--danger)' : demoMode ? 'var(--danger)' : 'var(--text2)'
+  // Switching TO demo: always allowed. Switching TO live: only if API key exists.
+  const canToggle = connected && !switching && (demoMode ? hasLiveKey : true)
+  const toggleTarget = demoMode ? 'LIVE' : 'DEMO'
+  const toggleTitle = demoMode && !hasLiveKey
+    ? 'No AISSTREAM_API_KEY configured'
+    : `Switch to ${toggleTarget}`
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: dotColor,
+          animation: 'pulse-dot 2s infinite',
+        }} />
+        <span style={{ fontSize: 10, color: labelColor, letterSpacing: 1.5 }}>{label}</span>
+      </div>
+      {connected && (
+        <button
+          onClick={() => onSwitch(!demoMode)}
+          disabled={!canToggle}
+          title={toggleTitle}
+          style={{
+            fontSize: 9, letterSpacing: 1.5, padding: '2px 8px',
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            color: 'var(--text3)',
+            cursor: canToggle ? 'pointer' : 'not-allowed',
+            opacity: canToggle ? 1 : 0.4,
+            fontFamily: 'inherit',
+            textTransform: 'uppercase',
+          }}
+        >
+          {toggleTarget}
+        </button>
+      )}
     </div>
   )
 }
