@@ -16,7 +16,6 @@ export default function App() {
   const [connected, setConnected] = useState(false)
   const [selectedShip, setSelectedShip] = useState(null)
 
-  // Deduplicate incidents by id
   const incidentIds = useRef(new Set())
 
   const addIncident = useCallback((incident) => {
@@ -28,32 +27,24 @@ export default function App() {
   useWebSocket({
     onConnect: () => setConnected(true),
     onDisconnect: () => setConnected(false),
-
     onInit: (data) => {
       setShips(data.ships || [])
       setHotzones(data.hotzones || {})
     },
-
     onShips: (data) => setShips(data),
-
     onIncident: (data) => addIncident(data),
-
     onEvaluation: (data) => {
       setEvaluations(prev => [data, ...prev].slice(0, 100))
-      // Update the matching incident with confidence info
       setIncidents(prev => prev.map(inc =>
         inc.id === data.incident_id
           ? { ...inc, confidence_score: data.confidence_score, incident_type: data.incident_type, commodities_affected: data.commodities_affected }
           : inc
       ))
     },
-
     onAgentStatus: (data) => setAgentStatus(data),
-
     onThresholdUpdate: (data) => {
       setThresholds(prev => ({ ...prev, [data.region]: data }))
     },
-
     onReport: (data) => {
       setReport(data)
       setShowReport(true)
@@ -67,29 +58,28 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)' }}>
 
-      {/* ── Top Header Bar ── */}
+      {/* ── Header ── */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
-          <span style={styles.logo}>⚓ MARITIME SENTINEL</span>
-          <span style={styles.subtitle}>Intelligence Monitoring Platform</span>
+          <span style={styles.logo}>BALAGAER</span>
+          <span style={styles.logoSub}>Intelligence Monitoring Platform</span>
         </div>
 
         <div style={styles.headerStats}>
-          <Stat label="VESSELS" value={ships.length} color="var(--accent)" />
+          <Stat label="VESSELS" value={ships.length} />
           <Stat label="IN ZONE" value={hotzoneShips} color="var(--warning)" />
           <Stat label="DARK" value={darkShips} color="var(--danger)" />
-          <Stat label="INCIDENTS" value={totalIncidents} color="var(--danger)" />
+          <Stat label="INCIDENTS" value={totalIncidents} color={totalIncidents > 0 ? 'var(--danger)' : 'var(--text)'} />
         </div>
 
         <div style={styles.headerRight}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={styles.liveIndicator}>
             <div style={{
-              width: 8, height: 8, borderRadius: '50%',
+              width: 6, height: 6, borderRadius: '50%',
               background: connected ? 'var(--green)' : 'var(--danger)',
-              boxShadow: connected ? 'var(--glow-green)' : 'var(--glow-danger)',
-              animation: 'pulse-dot 2s infinite'
+              animation: 'pulse-dot 2s infinite',
             }} />
-            <span style={{ fontSize: 11, color: 'var(--text2)', letterSpacing: 1 }}>
+            <span style={{ fontSize: 10, color: connected ? 'var(--text2)' : 'var(--danger)', letterSpacing: 1.5 }}>
               {connected ? 'LIVE' : 'RECONNECTING'}
             </span>
           </div>
@@ -99,9 +89,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Main Layout ── */}
+      {/* ── Body ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Map */}
         <div style={{ flex: 1, position: 'relative' }}>
           <Map
             ships={ships}
@@ -112,7 +101,6 @@ export default function App() {
           />
         </div>
 
-        {/* Right sidebar */}
         <IncidentPanel
           incidents={incidents}
           thresholds={thresholds}
@@ -123,7 +111,6 @@ export default function App() {
         />
       </div>
 
-      {/* Intelligence Report Modal */}
       {showReport && report && (
         <ReportModal report={report} onClose={() => setShowReport(false)} />
       )}
@@ -134,21 +121,26 @@ export default function App() {
 function Stat({ label, value, color }) {
   return (
     <div style={styles.stat}>
-      <span style={{ ...styles.statValue, color }}>{value}</span>
-      <span style={styles.statLabel}>{label}</span>
+      <span style={{ fontSize: 22, fontWeight: 300, color: color || 'var(--text)', lineHeight: 1, letterSpacing: -0.5 }}>
+        {value}
+      </span>
+      <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 2, marginTop: 2 }}>{label}</span>
     </div>
   )
 }
 
 function AgentBadge({ status }) {
   const stageColors = { evaluator: 'var(--accent)', reporter: 'var(--green)', critic: 'var(--warning)' }
-  const color = stageColors[status.stage] || 'var(--text2)'
+  const color = stageColors[status.stage] || 'var(--text3)'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px',
-      background: 'rgba(0,0,0,0.4)', border: `1px solid ${color}`, borderRadius: 4 }}>
-      <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, animation: 'pulse-dot 1s infinite' }} />
-      <span style={{ fontSize: 10, color, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-        {status.stage} running
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '3px 10px', border: `1px solid ${color}22`,
+      background: `${color}08`,
+    }}>
+      <div style={{ width: 5, height: 5, borderRadius: '50%', background: color, animation: 'pulse-dot 1s infinite' }} />
+      <span style={{ fontSize: 9, color, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+        {status.stage}
       </span>
     </div>
   )
@@ -157,16 +149,19 @@ function AgentBadge({ status }) {
 const styles = {
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '0 20px', height: 52,
-    background: 'var(--panel)', borderBottom: '1px solid var(--border)',
+    padding: '0 24px', height: 48,
+    background: 'var(--bg)',
+    borderBottom: '1px solid var(--border)',
     flexShrink: 0,
   },
-  headerLeft: { display: 'flex', alignItems: 'baseline', gap: 12 },
-  logo: { fontSize: 16, fontWeight: 700, color: 'var(--accent)', letterSpacing: 2, textTransform: 'uppercase' },
-  subtitle: { fontSize: 10, color: 'var(--text3)', letterSpacing: 1 },
-  headerStats: { display: 'flex', gap: 28 },
-  stat: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 },
-  statValue: { fontSize: 20, fontWeight: 700, lineHeight: 1 },
-  statLabel: { fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5 },
-  headerRight: { display: 'flex', alignItems: 'center', gap: 16 },
+  headerLeft: { display: 'flex', alignItems: 'baseline', gap: 14 },
+  logo: {
+    fontSize: 13, fontWeight: 600, color: 'var(--text)',
+    letterSpacing: 3, textTransform: 'uppercase',
+  },
+  logoSub: { fontSize: 10, color: 'var(--text3)', letterSpacing: 1 },
+  headerStats: { display: 'flex', gap: 32 },
+  stat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  headerRight: { display: 'flex', alignItems: 'center', gap: 12 },
+  liveIndicator: { display: 'flex', alignItems: 'center', gap: 7 },
 }

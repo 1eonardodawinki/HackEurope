@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
@@ -63,68 +63,63 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         },
       })
 
-      // ── Ship positions (native GL circle layer — always geo-anchored) ──
+      // ── Ship arrow icon (triangle pointing north = 0°, rotated by COG) ──
+      const sz = 24
+      const cv = document.createElement('canvas')
+      cv.width = sz; cv.height = sz
+      const cx = cv.getContext('2d')
+      cx.fillStyle = 'white'
+      cx.beginPath()
+      cx.moveTo(sz / 2, 1)          // tip
+      cx.lineTo(sz - 3, sz - 3)     // bottom-right
+      cx.lineTo(sz / 2, sz * 0.62)  // notch (arrow shape)
+      cx.lineTo(3, sz - 3)          // bottom-left
+      cx.closePath()
+      cx.fill()
+      map.current.addImage('ship-arrow', cx.getImageData(0, 0, sz, sz), { sdf: true })
+
+      // ── Ship positions ──
       map.current.addSource('ships', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
 
-      // Outer glow ring
-      map.current.addLayer({
-        id: 'ships-glow',
-        type: 'circle',
-        source: 'ships',
-        filter: ['!=', ['get', 'status'], 'dark'],
-        paint: {
-          'circle-radius': 10,
-          'circle-color': 'transparent',
-          'circle-stroke-width': 1,
-          'circle-stroke-color': [
-            'match', ['get', 'status'],
-            'suspicious', '#ff3355',
-            '#00e5ff',
-          ],
-          'circle-stroke-opacity': 0.3,
-        },
-      })
-
-      // Main ship dot
-      map.current.addLayer({
-        id: 'ships',
-        type: 'circle',
-        source: 'ships',
-        paint: {
-          'circle-radius': 5,
-          'circle-color': [
-            'match', ['get', 'status'],
-            'active', '#00e5ff',
-            'dark', '#555577',
-            'suspicious', '#ff3355',
-            '#00e5ff',
-          ],
-          'circle-opacity': ['match', ['get', 'status'], 'dark', 0.5, 1.0],
-          'circle-stroke-width': 1,
-          'circle-stroke-color': [
-            'match', ['get', 'status'],
-            'active', 'rgba(0,229,255,0.5)',
-            'suspicious', 'rgba(255,51,85,0.5)',
-            'transparent',
-          ],
-        },
-      })
-
-      // Selection ring (filtered to selected ship via setFilter)
+      // Selection ring (below the ship icon)
       map.current.addLayer({
         id: 'ships-selected',
         type: 'circle',
         source: 'ships',
         filter: ['==', ['get', 'mmsi'], -1],
         paint: {
-          'circle-radius': 9,
+          'circle-radius': 10,
           'circle-color': 'transparent',
-          'circle-stroke-width': 2,
+          'circle-stroke-width': 1.5,
           'circle-stroke-color': '#ffffff',
-          'circle-stroke-opacity': 0.9,
+          'circle-stroke-opacity': 0.7,
+        },
+      })
+
+      // Ship triangles
+      map.current.addLayer({
+        id: 'ships',
+        type: 'symbol',
+        source: 'ships',
+        layout: {
+          'icon-image': 'ship-arrow',
+          'icon-rotate': ['get', 'cog'],
+          'icon-rotation-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-size': 0.7,
+        },
+        paint: {
+          'icon-color': [
+            'match', ['get', 'status'],
+            'suspicious', '#ff3355',
+            'dark', '#444444',
+            '#ffffff',
+          ],
+          'icon-opacity': ['match', ['get', 'status'], 'dark', 0.35, 1.0],
         },
       })
 
@@ -232,6 +227,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         name: ship.name,
         status: ship.status,
         in_hotzone: ship.in_hotzone,
+        cog: ship.cog ?? 0,
       },
     }))
 
@@ -239,7 +235,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       .filter(s => s.trail && s.trail.length > 1)
       .map(ship => ({
         type: 'Feature',
-        properties: { color: ship.status === 'dark' ? '#444' : (STATUS_COLORS[ship.status] || STATUS_COLORS.active) },
+        properties: { color: ship.status === 'dark' ? '#333' : ship.status === 'suspicious' ? '#ff3355' : 'rgba(255,255,255,0.25)' },
         geometry: { type: 'LineString', coordinates: ship.trail },
       }))
 
@@ -279,16 +275,16 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       el.className = `incident-marker ${incident.severity === 'high' ? 'high' : ''}`
       el.title = `Incident: ${incident.type}`
 
-      const popup = new mapboxgl.Popup({ offset: 15, closeButton: false })
+      const popup = new mapboxgl.Popup({ offset: 14, closeButton: false })
         .setHTML(`
-          <div style="font-family:monospace;font-size:11px;color:#c8ddf0;background:#0c1526;padding:8px;border:1px solid #1a2f52;border-radius:4px;min-width:180px">
-            <div style="color:${incident.severity === 'high' ? '#ff3355' : '#ff9500'};font-weight:bold;margin-bottom:4px">
-              ⚠ ${incident.type === 'ais_dropout' ? 'AIS DROPOUT' : 'SHIP PROXIMITY'}
+          <div style="font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;font-size:11px;color:#fff;background:#080808;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);min-width:180px">
+            <div style="font-size:9px;letter-spacing:2px;color:${incident.severity === 'high' ? '#ff3355' : '#ff9500'};font-weight:600;margin-bottom:6px">
+              ${incident.type === 'ais_dropout' ? 'AIS DROPOUT' : 'SHIP PROXIMITY'}
             </div>
-            <div><b>${incident.ship_name || 'Unknown'}</b></div>
-            <div style="color:#7a99bb">Region: ${incident.region}</div>
-            ${incident.confidence_score ? `<div style="color:#00e5ff">Confidence: ${incident.confidence_score}%</div>` : ''}
-            ${incident.duration_minutes ? `<div>Duration: ${incident.duration_minutes}m</div>` : ''}
+            <div style="font-weight:500;margin-bottom:4px">${incident.ship_name || 'Unknown'}</div>
+            <div style="color:#666;font-size:10px">${incident.region}</div>
+            ${incident.confidence_score ? `<div style="color:#aaa;font-size:10px;margin-top:2px">Confidence: ${incident.confidence_score}%</div>` : ''}
+            ${incident.duration_minutes ? `<div style="color:#666;font-size:10px">Duration: ${incident.duration_minutes}m</div>` : ''}
           </div>
         `)
 
@@ -329,30 +325,30 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       {/* Ship tooltip overlay */}
       {selectedShip && (
         <div style={styles.shipTooltip} className="animate-sweep-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{selectedShip.name}</span>
-            <span style={{ color: 'var(--text3)', cursor: 'pointer', fontSize: 14 }}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{selectedShip.name}</span>
+            <span style={{ color: 'var(--text3)', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}
               onClick={() => onSelectShip(null)}>✕</span>
           </div>
           <Row label="MMSI" value={selectedShip.mmsi} />
-          <Row label="Status" value={selectedShip.status.toUpperCase()}
+          <Row label="STATUS" value={selectedShip.status.toUpperCase()}
             valueColor={STATUS_COLORS[selectedShip.status]} />
-          <Row label="Position" value={`${selectedShip.lat.toFixed(4)}°N, ${selectedShip.lon.toFixed(4)}°E`} />
-          <Row label="Speed" value={`${selectedShip.sog} kn`} />
-          <Row label="Course" value={`${selectedShip.cog}°`} />
+          <Row label="POSITION" value={`${selectedShip.lat.toFixed(4)}°, ${selectedShip.lon.toFixed(4)}°`} />
+          <Row label="SPEED" value={`${selectedShip.sog} kn`} />
+          <Row label="COURSE" value={`${selectedShip.cog}°`} />
           {selectedShip.in_hotzone && (
-            <Row label="Hotzone" value={selectedShip.in_hotzone} valueColor="var(--warning)" />
+            <Row label="HOTZONE" value={selectedShip.in_hotzone} valueColor="var(--warning)" />
           )}
         </div>
       )}
 
       {/* Map legend */}
       <div style={styles.legend}>
-        <LegendItem color="var(--accent)" label="Active vessel" />
-        <LegendItem color="var(--danger)" label="Suspicious / proximity" />
-        <LegendItem color="#555577" label="Dark (AIS off)" />
-        <div style={{ borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 6 }}>
-          <LegendItem color="var(--danger)" dashed label="Strait of Hormuz" />
+        <LegendItem color="var(--accent)" label="Active" />
+        <LegendItem color="var(--danger)" label="Suspicious" />
+        <LegendItem color="#444" label="Dark" />
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 8 }}>
+          <LegendItem color="var(--danger)" dashed label="Hormuz" />
           <LegendItem color="var(--warning)" dashed label="Black Sea / Red Sea" />
         </div>
       </div>
@@ -362,21 +358,21 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
 
 function Row({ label, value, valueColor }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-      <span style={{ color: 'var(--text3)', fontSize: 10 }}>{label}</span>
-      <span style={{ color: valueColor || 'var(--text)', fontSize: 11 }}>{value}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+      <span style={{ color: 'var(--text3)', fontSize: 9, letterSpacing: 1.5 }}>{label}</span>
+      <span style={{ color: valueColor || 'var(--text2)', fontSize: 10 }}>{value}</span>
     </div>
   )
 }
 
 function LegendItem({ color, label, dashed }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
       {dashed
-        ? <div style={{ width: 16, height: 2, borderTop: `2px dashed ${color}` }} />
-        : <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
+        ? <div style={{ width: 14, height: 1, borderTop: `1px dashed ${color}`, opacity: 0.7 }} />
+        : <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
       }
-      <span style={{ fontSize: 10, color: 'var(--text2)' }}>{label}</span>
+      <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 0.5 }}>{label}</span>
     </div>
   )
 }
@@ -384,14 +380,14 @@ function LegendItem({ color, label, dashed }) {
 const styles = {
   shipTooltip: {
     position: 'absolute', top: 16, left: 16,
-    background: 'rgba(7,13,26,0.92)', backdropFilter: 'blur(8px)',
-    border: '1px solid var(--border2)', borderRadius: 6, padding: 12,
-    minWidth: 220, zIndex: 10,
+    background: 'rgba(8,8,8,0.95)', backdropFilter: 'blur(12px)',
+    border: '1px solid rgba(255,255,255,0.1)', padding: '12px 14px',
+    minWidth: 210, zIndex: 10,
   },
   legend: {
     position: 'absolute', bottom: 32, left: 16,
-    background: 'rgba(7,13,26,0.85)', backdropFilter: 'blur(6px)',
-    border: '1px solid var(--border)', borderRadius: 6, padding: '10px 14px',
+    background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.08)', padding: '10px 14px',
     zIndex: 10,
   },
 }
