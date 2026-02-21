@@ -9,18 +9,10 @@ const STATUS_COLORS = {
   suspicious: '#ff3355',
 }
 
-const TYPE_ICONS = {
-  tanker: '◆',
-  container: '■',
-  bulk_carrier: '▲',
-  cargo: '●',
-  unknown: '●',
-}
-
 export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
-  const markers = useRef({})      // mmsi → mapboxgl.Marker
+  const shipsData = useRef({})        // mmsi → full ship object (for click lookup)
   const incidentMarkers = useRef({})  // id → mapboxgl.Marker
   const [mapReady, setMapReady] = useState(false)
   const [noToken, setNoToken] = useState(false)
@@ -71,18 +63,95 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         },
       })
 
+      // ── Ship positions (native GL circle layer — always geo-anchored) ──
+      map.current.addSource('ships', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      // Outer glow ring
+      map.current.addLayer({
+        id: 'ships-glow',
+        type: 'circle',
+        source: 'ships',
+        filter: ['!=', ['get', 'status'], 'dark'],
+        paint: {
+          'circle-radius': 10,
+          'circle-color': 'transparent',
+          'circle-stroke-width': 1,
+          'circle-stroke-color': [
+            'match', ['get', 'status'],
+            'suspicious', '#ff3355',
+            '#00e5ff',
+          ],
+          'circle-stroke-opacity': 0.3,
+        },
+      })
+
+      // Main ship dot
+      map.current.addLayer({
+        id: 'ships',
+        type: 'circle',
+        source: 'ships',
+        paint: {
+          'circle-radius': 5,
+          'circle-color': [
+            'match', ['get', 'status'],
+            'active', '#00e5ff',
+            'dark', '#555577',
+            'suspicious', '#ff3355',
+            '#00e5ff',
+          ],
+          'circle-opacity': ['match', ['get', 'status'], 'dark', 0.5, 1.0],
+          'circle-stroke-width': 1,
+          'circle-stroke-color': [
+            'match', ['get', 'status'],
+            'active', 'rgba(0,229,255,0.5)',
+            'suspicious', 'rgba(255,51,85,0.5)',
+            'transparent',
+          ],
+        },
+      })
+
+      // Selection ring (filtered to selected ship via setFilter)
+      map.current.addLayer({
+        id: 'ships-selected',
+        type: 'circle',
+        source: 'ships',
+        filter: ['==', ['get', 'mmsi'], -1],
+        paint: {
+          'circle-radius': 9,
+          'circle-color': 'transparent',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-opacity': 0.9,
+        },
+      })
+
+      // Click to select ship
+      map.current.on('click', 'ships', (e) => {
+        if (e.features.length > 0) {
+          const mmsi = e.features[0].properties.mmsi
+          onSelectShip(shipsData.current[mmsi] || null)
+        }
+      })
+      map.current.on('mouseenter', 'ships', () => {
+        map.current.getCanvas().style.cursor = 'pointer'
+      })
+      map.current.on('mouseleave', 'ships', () => {
+        map.current.getCanvas().style.cursor = ''
+      })
+
       setMapReady(true)
     })
 
     return () => {
-      Object.values(markers.current).forEach(m => m.remove())
       Object.values(incidentMarkers.current).forEach(m => m.remove())
       map.current?.remove()
     }
   }, [])
 
   function addHotzoneLayers() {
-    // Hotzone fill + border
     const features = Object.entries(hotzones).map(([name, hz]) => ({
       type: 'Feature',
       properties: { name, color: hz.color },
@@ -104,17 +173,12 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       type: 'geojson',
       data: { type: 'FeatureCollection', features },
     })
-
     map.current.addLayer({
       id: 'hotzone-fill',
       type: 'fill',
       source: 'hotzones',
-      paint: {
-        'fill-color': ['get', 'color'],
-        'fill-opacity': 0.08,
-      },
+      paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.08 },
     })
-
     map.current.addLayer({
       id: 'hotzone-border',
       type: 'line',
@@ -148,73 +212,52 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       },
     }))
 
-    if (!map.current.getSource('hotzones')) {
-      map.current.addSource('hotzones', { type: 'geojson', data: { type: 'FeatureCollection', features } })
-      map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.08 } })
-      map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.6, 'line-dasharray': [4, 3] } })
-    }
+    map.current.addSource('hotzones', { type: 'geojson', data: { type: 'FeatureCollection', features } })
+    map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.08 } })
+    map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.6, 'line-dasharray': [4, 3] } })
   }, [mapReady, hotzones])
 
-  // ── Update ship markers + trails ──────────────────────────────────────────
+  // ── Update ship positions + trails ────────────────────────────────────────
   useEffect(() => {
     if (!mapReady || !map.current) return
 
-    const activeMmsis = new Set(ships.map(s => s.mmsi))
+    // Keep full ship data for click lookup
+    ships.forEach(s => { shipsData.current[s.mmsi] = s })
 
-    // Remove stale markers
-    for (const mmsi of Object.keys(markers.current)) {
-      if (!activeMmsis.has(Number(mmsi))) {
-        markers.current[mmsi].remove()
-        delete markers.current[mmsi]
-      }
+    const shipFeatures = ships.map(ship => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [ship.lon, ship.lat] },
+      properties: {
+        mmsi: ship.mmsi,
+        name: ship.name,
+        status: ship.status,
+        in_hotzone: ship.in_hotzone,
+      },
+    }))
+
+    const trailFeatures = ships
+      .filter(s => s.trail && s.trail.length > 1)
+      .map(ship => ({
+        type: 'Feature',
+        properties: { color: ship.status === 'dark' ? '#444' : (STATUS_COLORS[ship.status] || STATUS_COLORS.active) },
+        geometry: { type: 'LineString', coordinates: ship.trail },
+      }))
+
+    if (map.current.getSource('ships')) {
+      map.current.getSource('ships').setData({ type: 'FeatureCollection', features: shipFeatures })
     }
-
-    const trailFeatures = []
-
-    ships.forEach(ship => {
-      const color = STATUS_COLORS[ship.status] || STATUS_COLORS.active
-      const isSelected = selectedShip?.mmsi === ship.mmsi
-
-      // Trail
-      if (ship.trail && ship.trail.length > 1) {
-        trailFeatures.push({
-          type: 'Feature',
-          properties: { color: ship.status === 'dark' ? '#444' : color },
-          geometry: { type: 'LineString', coordinates: ship.trail },
-        })
-      }
-
-      // Marker
-      if (!markers.current[ship.mmsi]) {
-        const el = document.createElement('div')
-        el.className = `ship-marker ${ship.status}`
-        el.innerHTML = `<div class="ping"></div>`
-        el.title = `${ship.name} (${ship.mmsi})`
-        el.addEventListener('click', () => onSelectShip(ship))
-
-        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([ship.lon, ship.lat])
-          .addTo(map.current)
-
-        markers.current[ship.mmsi] = marker
-        markers.current[ship.mmsi]._el = el
-      } else {
-        markers.current[ship.mmsi].setLngLat([ship.lon, ship.lat])
-        const el = markers.current[ship.mmsi]._el
-        if (el) {
-          el.className = `ship-marker ${ship.status}${isSelected ? ' selected' : ''}`
-        }
-      }
-    })
-
-    // Update trails
     if (map.current.getSource('ship-trails')) {
-      map.current.getSource('ship-trails').setData({
-        type: 'FeatureCollection',
-        features: trailFeatures,
-      })
+      map.current.getSource('ship-trails').setData({ type: 'FeatureCollection', features: trailFeatures })
     }
-  }, [ships, mapReady, selectedShip, onSelectShip])
+  }, [ships, mapReady])
+
+  // ── Update selection ring ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !map.current) return
+    if (map.current.getLayer('ships-selected')) {
+      map.current.setFilter('ships-selected', ['==', ['get', 'mmsi'], selectedShip?.mmsi ?? -1])
+    }
+  }, [selectedShip, mapReady])
 
   // ── Update incident markers ───────────────────────────────────────────────
   useEffect(() => {
@@ -222,7 +265,6 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
 
     const activeIds = new Set(incidents.map(i => i.id))
 
-    // Remove old
     for (const id of Object.keys(incidentMarkers.current)) {
       if (!activeIds.has(id)) {
         incidentMarkers.current[id].remove()

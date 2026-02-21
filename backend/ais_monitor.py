@@ -237,6 +237,13 @@ class AISMonitor:
 
     # ── Live AIS loop ─────────────────────────────────────────────────────────
 
+    async def _live_broadcast_loop(self):
+        """Broadcast current ship positions every 2 seconds (live mode)."""
+        while self._running:
+            if self._ships:
+                await self.on_ship_update(self.get_ships())
+            await asyncio.sleep(2)
+
     async def _live_ais_loop(self):
         """Connect to AISstream.io WebSocket and process real AIS data."""
         url = "wss://stream.aisstream.io/v0/stream"
