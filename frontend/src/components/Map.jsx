@@ -16,6 +16,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
   const incidentMarkers = useRef({})  // id → mapboxgl.Marker
   const [mapReady, setMapReady] = useState(false)
   const [noToken, setNoToken] = useState(false)
+  const [typeFilter, setTypeFilter] = useState('all')
 
   // ── Init map ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -219,7 +220,12 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     // Keep full ship data for click lookup
     ships.forEach(s => { shipsData.current[s.mmsi] = s })
 
-    const shipFeatures = ships.map(ship => ({
+    const MAIN_TYPES = ['tanker', 'cargo', 'passenger', 'fishing']
+    const visibleShips = typeFilter === 'all' ? ships
+      : typeFilter === 'other' ? ships.filter(s => !MAIN_TYPES.includes(s.type))
+      : ships.filter(s => s.type === typeFilter)
+
+    const shipFeatures = visibleShips.map(ship => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [ship.lon, ship.lat] },
       properties: {
@@ -231,7 +237,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       },
     }))
 
-    const trailFeatures = ships
+    const trailFeatures = visibleShips
       .filter(s => s.trail && s.trail.length > 1)
       .map(ship => ({
         type: 'Feature',
@@ -245,7 +251,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     if (map.current.getSource('ship-trails')) {
       map.current.getSource('ship-trails').setData({ type: 'FeatureCollection', features: trailFeatures })
     }
-  }, [ships, mapReady])
+  }, [ships, mapReady, typeFilter])
 
   // ── Update selection ring ─────────────────────────────────────────────────
   useEffect(() => {
@@ -300,7 +306,8 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
   // ── Fly to selected ship ──────────────────────────────────────────────────
   useEffect(() => {
     if (!mapReady || !selectedShip || !map.current) return
-    map.current.flyTo({ center: [selectedShip.lon, selectedShip.lat], zoom: 7, duration: 1200 })
+    const currentZoom = map.current.getZoom()
+    map.current.flyTo({ center: [selectedShip.lon, selectedShip.lat], zoom: Math.max(currentZoom, 7), duration: 1200 })
   }, [selectedShip, mapReady])
 
   if (noToken) {
@@ -322,6 +329,18 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
+      {/* Type filter bar */}
+      <div style={styles.filterBar}>
+        {['all', 'tanker', 'cargo', 'passenger', 'fishing', 'other'].map(t => (
+          <button key={t} onClick={() => setTypeFilter(t)} style={{
+            ...styles.filterBtn,
+            ...(typeFilter === t ? styles.filterBtnActive : {}),
+          }}>
+            {t.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
       {/* Ship tooltip overlay */}
       {selectedShip && (
         <div style={styles.shipTooltip} className="animate-sweep-in">
@@ -333,6 +352,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
           <Row label="MMSI" value={selectedShip.mmsi} />
           <Row label="STATUS" value={selectedShip.status.toUpperCase()}
             valueColor={STATUS_COLORS[selectedShip.status]} />
+          <Row label="TYPE" value={(selectedShip.type || 'unknown').toUpperCase()} />
           <Row label="POSITION" value={`${selectedShip.lat.toFixed(4)}°, ${selectedShip.lon.toFixed(4)}°`} />
           <Row label="SPEED" value={`${selectedShip.sog} kn`} />
           <Row label="COURSE" value={`${selectedShip.cog}°`} />
@@ -378,6 +398,21 @@ function LegendItem({ color, label, dashed }) {
 }
 
 const styles = {
+  filterBar: {
+    position: 'absolute', top: 16, right: 16,
+    display: 'flex', gap: 4, zIndex: 10,
+  },
+  filterBtn: {
+    padding: '5px 10px',
+    background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    color: 'var(--text3)', fontSize: 9, letterSpacing: 1.5,
+    cursor: 'pointer', fontFamily: 'inherit',
+    transition: 'color 0.15s, border-color 0.15s',
+  },
+  filterBtnActive: {
+    color: 'var(--text)', borderColor: 'rgba(255,255,255,0.3)',
+  },
   shipTooltip: {
     position: 'absolute', top: 16, left: 16,
     background: 'rgba(8,8,8,0.95)', backdropFilter: 'blur(12px)',
