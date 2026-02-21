@@ -16,8 +16,9 @@ export function useWebSocket(handlers) {
       case 'evaluation':   h.onEvaluation?.(msg.data); break
       case 'agent_status': h.onAgentStatus?.(msg.data); break
       case 'threshold_update': h.onThresholdUpdate?.(msg.data); break
-      case 'report':       h.onReport?.(msg.data); break
-      case 'mode_change':  h.onModeChange?.(msg.data); break
+      case 'report':              h.onReport?.(msg.data); break
+      case 'mode_change':         h.onModeChange?.(msg.data); break
+      case 'investigation_start': h.onInvestigationStart?.(msg.data); break
       case 'heartbeat':    break
       default: break
     }

@@ -8,7 +8,6 @@ export default function App() {
   const [ships, setShips] = useState([])
   const [hotzones, setHotzones] = useState({})
   const [incidents, setIncidents] = useState([])
-  const [evaluations, setEvaluations] = useState([])
   const [agentStatus, setAgentStatus] = useState({ stage: 'idle', message: 'Connecting...' })
   const [thresholds, setThresholds] = useState({})
   const [report, setReport] = useState(null)
@@ -20,6 +19,8 @@ export default function App() {
   const [selectedShip, setSelectedShip] = useState(null)
   const [editZones, setEditZones] = useState(false)
   const [zoneOverrides, setZoneOverrides] = useState({})
+  const [mmsiInput, setMmsiInput] = useState('')
+  const [investigating, setInvestigating] = useState(false)
 
   const handleZoneChange = useCallback((name, geo) => {
     setZoneOverrides(prev => ({ ...prev, [name]: geo }))
@@ -47,6 +48,10 @@ export default function App() {
       setHotzones(data.hotzones || {})
       setDemoMode(!!data.demo_mode)
       setHasLiveKey(!!data.has_live_key)
+      setModeSwitching(false)
+      // Clear dedup set so backend-restarted incidents aren't blocked.
+      // Do NOT clear incidents/evaluations — those are cleared by onModeChange only.
+      incidentIds.current.clear()
     },
     onModeChange: (data) => {
       setDemoMode(!!data.demo_mode)
@@ -54,7 +59,6 @@ export default function App() {
       setModeSwitching(false)
       setShips([])
       setIncidents([])
-      setEvaluations([])
       setThresholds({})
       setReport(null)
       setShowReport(false)
@@ -69,7 +73,6 @@ export default function App() {
       addLog({ kind: 'incident', text: `${data.type === 'ais_dropout' ? 'AIS DROPOUT' : 'PROXIMITY'} — ${data.ship_name || `MMSI ${data.mmsi}`} [${data.region}]`, severity: data.severity })
     },
     onEvaluation: (data) => {
-      setEvaluations(prev => [data, ...prev].slice(0, 100))
       setIncidents(prev => prev.map(inc =>
         inc.id === data.incident_id
           ? { ...inc, confidence_score: data.confidence_score, incident_type: data.incident_type, commodities_affected: data.commodities_affected }
@@ -81,10 +84,10 @@ export default function App() {
       setAgentStatus(data)
       if (data.stage === 'error') {
         addLog({ kind: 'error', text: `Pipeline error: ${data.message}` })
-      } else if (data.stage !== 'idle' && data.stage !== 'critic_result') {
-        addLog({ kind: 'agent', text: data.message || data.stage, stage: data.stage, round: data.round })
       } else if (data.stage === 'critic_result') {
         addLog({ kind: 'critic', text: `Critic round ${data.round}: ${data.approved ? '✓ APPROVED' : '✗ REVISE'} (quality ${data.quality_score}/100)`, approved: data.approved })
+      } else if (data.stage !== 'idle' && data.stage !== 'reporter_stream') {
+        addLog({ kind: 'agent', text: data.message || data.stage, stage: data.stage, round: data.round })
       }
     },
     onThresholdUpdate: (data) => {
@@ -96,9 +99,27 @@ export default function App() {
     onReport: (data) => {
       setReport(data)
       setShowReport(true)
+      setInvestigating(false)
       addLog({ kind: 'report', text: `Report ready: "${data.title || 'Intelligence Report'}" — ${data.overall_confidence || '?'}% confidence` })
     },
   })
+
+  const submitInvestigation = async () => {
+    const mmsi = mmsiInput.trim()
+    if (!mmsi || investigating) return
+    setInvestigating(true)
+    addLog({ kind: 'system', text: `Investigation launched for MMSI ${mmsi}` })
+    try {
+      await fetch('http://localhost:8000/investigate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mmsi }),
+      })
+    } catch {
+      setInvestigating(false)
+      addLog({ kind: 'error', text: `Failed to reach backend for MMSI ${mmsi}` })
+    }
+  }
 
   const switchMode = async (toDemo) => {
     if (modeSwitching) return
@@ -136,6 +157,14 @@ export default function App() {
         </div>
 
         <div style={styles.headerRight}>
+          <MmsiSearch
+            value={mmsiInput}
+            onChange={setMmsiInput}
+            onSubmit={submitInvestigation}
+            disabled={investigating || !connected}
+            investigating={investigating}
+          />
+          <div style={styles.headerDivider} />
           <ModeIndicator
             connected={connected}
             demoMode={demoMode}
@@ -248,8 +277,9 @@ function ModeIndicator({ connected, demoMode, hasLiveKey, switching, onSwitch })
 }
 
 function AgentBadge({ status }) {
-  const stageColors = { evaluator: 'var(--accent)', reporter: 'var(--green)', critic: 'var(--warning)' }
+  const stageColors = { evaluator: 'var(--accent)', reporter: 'var(--green)', reporter_stream: 'var(--green)', critic: 'var(--warning)' }
   const color = stageColors[status.stage] || 'var(--text3)'
+  const label = status.stage === 'reporter_stream' ? 'REPORTER' : status.stage
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 6,
@@ -258,7 +288,7 @@ function AgentBadge({ status }) {
     }}>
       <div style={{ width: 5, height: 5, borderRadius: '50%', background: color, animation: 'pulse-dot 1s infinite' }} />
       <span style={{ fontSize: 9, color, letterSpacing: 1.5, textTransform: 'uppercase' }}>
-        {status.stage}
+        {label}
       </span>
     </div>
   )
@@ -282,9 +312,52 @@ const styles = {
   stat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
   headerRight: { display: 'flex', alignItems: 'center', gap: 12 },
   liveIndicator: { display: 'flex', alignItems: 'center', gap: 7 },
+  headerDivider: { width: 1, height: 20, background: 'var(--border)', flexShrink: 0 },
   editZonesBtn: {
     background: 'transparent', border: '1px solid', cursor: 'pointer',
     fontSize: 9, letterSpacing: 2, fontFamily: 'inherit',
     padding: '4px 10px', transition: 'color 0.15s, border-color 0.15s',
   },
+}
+
+function MmsiSearch({ value, onChange, onSubmit, disabled, investigating }) {
+  const handleKey = (e) => { if (e.key === 'Enter') onSubmit() }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <input
+        type="text"
+        placeholder="MMSI number"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={handleKey}
+        maxLength={9}
+        style={{
+          background: 'transparent',
+          border: '1px solid var(--border)',
+          color: 'var(--text)',
+          fontSize: 10,
+          fontFamily: 'inherit',
+          letterSpacing: 1,
+          padding: '3px 8px',
+          width: 100,
+          outline: 'none',
+        }}
+      />
+      <button
+        onClick={onSubmit}
+        disabled={disabled || !value.trim()}
+        style={{
+          background: investigating ? 'rgba(0,229,255,0.08)' : 'transparent',
+          border: `1px solid ${investigating ? 'var(--accent)' : 'var(--border)'}`,
+          color: investigating ? 'var(--accent)' : 'var(--text3)',
+          fontSize: 9, letterSpacing: 2, fontFamily: 'inherit',
+          padding: '4px 10px', cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled && !investigating ? 0.4 : 1,
+          transition: 'all 0.15s',
+        }}
+      >
+        {investigating ? 'RUNNING' : 'INVESTIGATE'}
+      </button>
+    </div>
+  )
 }

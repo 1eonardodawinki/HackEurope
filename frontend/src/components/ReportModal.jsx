@@ -6,9 +6,11 @@ export default function ReportModal({ report, onClose }) {
   if (!report) return null
 
   const meta = report._meta || {}
+  const isInvestigation = !!report.ml_risk_score
   const predictions = report.commodity_predictions || []
   const evidence = report.supporting_evidence || []
   const risks = report.risk_factors || []
+  const actions = report.recommended_actions || []
 
   return (
     <div style={styles.overlay} onClick={onClose}>
@@ -19,17 +21,39 @@ export default function ReportModal({ report, onClose }) {
           <div style={{ flex: 1 }}>
             <div style={styles.classification}>{report.classification || 'INTELLIGENCE REPORT — RESTRICTED'}</div>
             <div style={styles.title}>{report.title || 'Maritime Intelligence Assessment'}</div>
-            <div style={styles.meta}>
-              {meta.region} &nbsp;·&nbsp; {meta.incident_count} incidents &nbsp;·&nbsp;
-              {meta.critic_rounds} critic round{meta.critic_rounds !== 1 ? 's' : ''} &nbsp;·&nbsp;
-              <span style={{ color: meta.final_approved ? 'var(--green)' : 'var(--warning)' }}>
-                {meta.final_approved ? 'APPROVED' : 'PROVISIONAL'}
-              </span>
+            <div style={styles.metaLine}>
+              {isInvestigation ? (
+                <>
+                  MMSI {meta.mmsi || report.ml_risk_score?.mmsi || '—'}
+                  &nbsp;·&nbsp;
+                  <span style={{ color: riskColor(report.ml_risk_score?.risk_tier) }}>
+                    {report.ml_risk_score?.risk_tier || '—'} RISK
+                  </span>
+                  &nbsp;·&nbsp;
+                  {meta.critic_rounds} critic round{meta.critic_rounds !== 1 ? 's' : ''}
+                  &nbsp;·&nbsp;
+                  <span style={{ color: meta.final_approved ? 'var(--green)' : 'var(--warning)' }}>
+                    {meta.final_approved ? 'APPROVED' : 'PROVISIONAL'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  {meta.region} &nbsp;·&nbsp; {meta.incident_count} incidents &nbsp;·&nbsp;
+                  {meta.critic_rounds} critic round{meta.critic_rounds !== 1 ? 's' : ''} &nbsp;·&nbsp;
+                  <span style={{ color: meta.final_approved ? 'var(--green)' : 'var(--warning)' }}>
+                    {meta.final_approved ? 'APPROVED' : 'PROVISIONAL'}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
-            <ConfidenceMeter value={report.overall_confidence} />
+            {isInvestigation && report.ml_risk_score ? (
+              <MLRingMeter probability={report.ml_risk_score.probability} tier={report.ml_risk_score.risk_tier} />
+            ) : (
+              <ConfidenceMeter value={report.overall_confidence} />
+            )}
             <button style={styles.closeBtn} onClick={onClose}>✕</button>
           </div>
         </div>
@@ -37,11 +61,67 @@ export default function ReportModal({ report, onClose }) {
         {/* Body */}
         <div style={styles.body}>
 
+          {/* Executive Summary — always */}
           <section style={styles.section}>
             <Label>Executive Summary</Label>
             <p style={styles.para}>{report.executive_summary}</p>
           </section>
 
+          {/* ── INVESTIGATION-ONLY SECTIONS ── */}
+          {isInvestigation && (
+            <>
+              {/* ML Risk Score interpretation */}
+              {report.ml_risk_score?.interpretation && (
+                <section style={styles.section}>
+                  <Label>ML Risk Assessment</Label>
+                  <div style={{
+                    display: 'flex', gap: 16, alignItems: 'flex-start',
+                    padding: '12px 14px',
+                    background: `${riskColor(report.ml_risk_score.risk_tier)}08`,
+                    border: `1px solid ${riskColor(report.ml_risk_score.risk_tier)}22`,
+                  }}>
+                    <div style={{ flexShrink: 0 }}>
+                      <div style={{ fontSize: 24, fontWeight: 300, color: riskColor(report.ml_risk_score.risk_tier) }}>
+                        {Math.round((report.ml_risk_score.probability || 0) * 100)}%
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5, marginTop: 2 }}>
+                        {report.ml_risk_score.risk_tier} RISK
+                      </div>
+                    </div>
+                    <p style={{ ...styles.para, margin: 0, fontSize: 12 }}>
+                      {report.ml_risk_score.interpretation}
+                    </p>
+                  </div>
+                </section>
+              )}
+
+              {/* Vessel Profile */}
+              {report.vessel_profile && (
+                <section style={styles.section}>
+                  <Label>Vessel Profile</Label>
+                  <p style={styles.para}>{report.vessel_profile}</p>
+                </section>
+              )}
+
+              {/* News Intelligence */}
+              {report.news_intelligence && (
+                <section style={styles.section}>
+                  <Label>News Intelligence</Label>
+                  <p style={styles.para}>{report.news_intelligence}</p>
+                </section>
+              )}
+
+              {/* Sanctions Assessment */}
+              {report.sanctions_assessment && (
+                <section style={styles.section}>
+                  <Label>Sanctions Assessment</Label>
+                  <p style={styles.para}>{report.sanctions_assessment}</p>
+                </section>
+              )}
+            </>
+          )}
+
+          {/* Commodity Predictions — standard reports only (hidden if absent) */}
           {predictions.length > 0 && (
             <section style={styles.section}>
               <Label>Commodity Market Impact Forecast</Label>
@@ -53,6 +133,7 @@ export default function ReportModal({ report, onClose }) {
             </section>
           )}
 
+          {/* Threat Assessment — always */}
           {report.threat_assessment && (
             <section style={styles.section}>
               <Label>Threat Assessment</Label>
@@ -60,6 +141,15 @@ export default function ReportModal({ report, onClose }) {
             </section>
           )}
 
+          {/* Geopolitical Context — shown for both types if present */}
+          {report.geopolitical_context && (
+            <section style={styles.section}>
+              <Label>Geopolitical Context</Label>
+              <p style={styles.para}>{report.geopolitical_context}</p>
+            </section>
+          )}
+
+          {/* Supporting Evidence — always */}
           {evidence.length > 0 && (
             <section style={styles.section}>
               <Label>Supporting Evidence</Label>
@@ -73,6 +163,7 @@ export default function ReportModal({ report, onClose }) {
             </section>
           )}
 
+          {/* Risk Factors — always */}
           {risks.length > 0 && (
             <section style={styles.section}>
               <Label>Risk Factors</Label>
@@ -86,6 +177,34 @@ export default function ReportModal({ report, onClose }) {
             </section>
           )}
 
+          {/* Recommended Actions — investigation only */}
+          {isInvestigation && actions.length > 0 && (
+            <section style={styles.section}>
+              <Label>Recommended Actions</Label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {actions.map((a, i) => (
+                  <div key={i} style={{ ...styles.evidenceItem, borderColor: 'rgba(0,229,255,0.15)' }}>
+                    <span style={{ color: 'var(--accent)', marginRight: 10, flexShrink: 0 }}>{i + 1}.</span>{a}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Overall Confidence — shown for investigation if present */}
+          {isInvestigation && report.overall_confidence && (
+            <section style={styles.section}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <ConfidenceMeter value={report.overall_confidence} />
+                <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.8 }}>
+                  Overall analytical confidence<br/>
+                  across all intelligence sources
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Analyst Reasoning Chain — always, collapsible */}
           {report.chain_of_thought && (
             <section style={styles.section}>
               <button style={styles.toggleBtn} onClick={() => setShowReasoning(v => !v)}>
@@ -109,6 +228,37 @@ export default function ReportModal({ report, onClose }) {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function riskColor(tier) {
+  if (tier === 'HIGH') return 'var(--danger)'
+  if (tier === 'MEDIUM') return 'var(--warning)'
+  return 'var(--text3)'
+}
+
+function MLRingMeter({ probability, tier }) {
+  const v = Math.round((probability || 0) * 100)
+  const color = riskColor(tier)
+  const circumference = 2 * Math.PI * 26
+  const offset = circumference - (v / 100) * circumference
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+      <svg width="68" height="68" viewBox="0 0 68 68">
+        <circle cx="34" cy="34" r="26" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" />
+        <circle cx="34" cy="34" r="26" fill="none" stroke={color} strokeWidth="1.5"
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          strokeLinecap="round" transform="rotate(-90 34 34)"
+          style={{ transition: 'stroke-dashoffset 1s ease' }}
+        />
+        <text x="34" y="37" textAnchor="middle" fill={color} fontSize="13" fontWeight="300"
+          fontFamily="-apple-system,BlinkMacSystemFont,'Inter',sans-serif">{v}%</text>
+        <text x="34" y="49" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="7"
+          fontFamily="-apple-system,BlinkMacSystemFont,'Inter',sans-serif">{tier}</text>
+      </svg>
+      <span style={{ fontSize: 8, color: 'var(--text3)', letterSpacing: 2 }}>ML RISK</span>
     </div>
   )
 }
@@ -223,7 +373,7 @@ const styles = {
     fontSize: 18, fontWeight: 300, color: 'var(--text)', marginBottom: 8, lineHeight: 1.3,
     letterSpacing: -0.3,
   },
-  meta: {
+  metaLine: {
     fontSize: 10, color: 'var(--text3)', letterSpacing: 0.5,
   },
   closeBtn: {
