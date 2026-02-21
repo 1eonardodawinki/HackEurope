@@ -117,7 +117,10 @@ class AISMonitor:
                 self._demo_incident_loop(),
             )
         else:
-            await self._live_ais_loop()
+            await asyncio.gather(
+                self._live_ais_loop(),
+                self._live_broadcast_loop(),
+            )
 
     def stop(self):
         self._running = False
@@ -265,6 +268,13 @@ class AISMonitor:
                 print(f"[AIS] Connection error: {e}. Reconnecting in 10s...")
                 await asyncio.sleep(10)
 
+    async def _live_broadcast_loop(self):
+        """Broadcast all current ship positions every 5 seconds in live mode."""
+        while self._running:
+            await asyncio.sleep(5)
+            if self._ships:
+                await self.on_ship_update(self.get_ships())
+
     async def _process_ais_message(self, msg: dict):
         msg_type = msg.get("MessageType", "")
         meta = msg.get("MetaData", {})
@@ -303,9 +313,7 @@ class AISMonitor:
                 self._ships[mmsi]["name"] = static.get("Name", self._ships[mmsi]["name"]).strip()
                 self._ships[mmsi]["type"] = static.get("Type", "unknown")
 
-        # Broadcast update (throttled — every 10 ships)
-        if len(self._ships) % 10 == 0:
-            await self.on_ship_update(self.get_ships())
+        # Broadcast is handled by _live_broadcast_loop every 5s
 
     # ── Serialise ─────────────────────────────────────────────────────────────
 
