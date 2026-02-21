@@ -10,8 +10,9 @@ from typing import Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-from config import HOTZONES
+from config import HOTZONES, DEMO_MODE, AISSTREAM_API_KEY
 from ais_monitor import AISMonitor
 from incident_detector import IncidentDetector
 import database as db
@@ -44,37 +45,42 @@ class ConnectionManager:
 manager = ConnectionManager()
 detector: IncidentDetector | None = None
 monitor: AISMonitor | None = None
+_ais_task: asyncio.Task | None = None
+_current_demo_mode: bool = DEMO_MODE
+
+
+# ── Module-level AIS callbacks (so they can be reused on mode switch) ─────────
+
+async def _on_ship_update(ships: list[dict]):
+    await manager.broadcast({"type": "ships", "data": ships})
+    asyncio.create_task(db.record_ship_positions(ships))
+
+async def _on_incident(incident: dict):
+    if detector:
+        await detector.add_incident(incident)
 
 
 # ── Lifespan (startup / shutdown) ─────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global detector, monitor
+    global detector, monitor, _ais_task, _current_demo_mode
+
+    _current_demo_mode = DEMO_MODE
 
     async def broadcast(msg: dict):
         await manager.broadcast(msg)
 
-    async def on_ship_update(ships: list[dict]):
-        await manager.broadcast({"type": "ships", "data": ships})
-        # Persist hotzone ships to Supabase (batched, fire-and-forget)
-        asyncio.create_task(db.record_ship_positions(ships))
-
-    async def on_incident(incident: dict):
-        await detector.add_incident(incident)
-
     detector = IncidentDetector(broadcast_callback=broadcast)
-    monitor = AISMonitor(on_ship_update=on_ship_update, on_incident=on_incident)
-
-    # Start AIS monitor as a background task
-    ais_task = asyncio.create_task(monitor.start())
+    monitor = AISMonitor(on_ship_update=_on_ship_update, on_incident=_on_incident, demo_mode=_current_demo_mode)
+    _ais_task = asyncio.create_task(monitor.start())
 
     yield  # App running
 
     monitor.stop()
-    ais_task.cancel()
+    _ais_task.cancel()
     try:
-        await ais_task
+        await _ais_task
     except asyncio.CancelledError:
         pass
 
@@ -121,6 +127,51 @@ async def get_report_history(limit: int = 10):
     return await db.get_recent_reports(limit=limit)
 
 
+# ── Mode Switch ───────────────────────────────────────────────────────────────
+
+class ModeRequest(BaseModel):
+    demo: bool
+
+@app.post("/mode")
+async def switch_mode(body: ModeRequest):
+    global detector, monitor, _ais_task, _current_demo_mode
+
+    if body.demo == _current_demo_mode:
+        return {"demo_mode": _current_demo_mode}
+
+    # Stop existing monitor
+    if monitor:
+        monitor.stop()
+    if _ais_task:
+        _ais_task.cancel()
+        try:
+            await _ais_task
+        except asyncio.CancelledError:
+            pass
+
+    _current_demo_mode = body.demo
+
+    # Fresh detector so incident counts reset for the new session
+    async def broadcast(msg: dict):
+        await manager.broadcast(msg)
+
+    detector = IncidentDetector(broadcast_callback=broadcast)
+    monitor = AISMonitor(on_ship_update=_on_ship_update, on_incident=_on_incident, demo_mode=_current_demo_mode)
+    _ais_task = asyncio.create_task(monitor.start())
+
+    # Tell all connected clients to reset their state
+    await manager.broadcast({
+        "type": "mode_change",
+        "data": {
+            "demo_mode": _current_demo_mode,
+            "has_live_key": bool(AISSTREAM_API_KEY),
+        },
+    })
+
+    print(f"[Mode] Switched to {'DEMO' if _current_demo_mode else 'LIVE'} mode")
+    return {"demo_mode": _current_demo_mode}
+
+
 # ── WebSocket Endpoint ────────────────────────────────────────────────────────
 
 @app.websocket("/ws")
@@ -135,6 +186,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     "ships": monitor.get_ships(),
                     "hotzones": HOTZONES,
                     "summary": detector.get_summary() if detector else {},
+                    "demo_mode": _current_demo_mode,
+                    "has_live_key": bool(AISSTREAM_API_KEY),
                 }
             }))
 
@@ -143,11 +196,9 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
                 msg = json.loads(data)
-                # Handle ping/pong
                 if msg.get("type") == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
             except asyncio.TimeoutError:
-                # Send heartbeat
                 await websocket.send_text(json.dumps({"type": "heartbeat"}))
             except WebSocketDisconnect:
                 break

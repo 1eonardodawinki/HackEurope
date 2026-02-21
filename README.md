@@ -87,11 +87,58 @@ npm run dev                 # → http://localhost:5173
 6. The **Critic Agent** adversarially reviews the report (up to 3 rounds) until it approves
 7. The final report shows **commodity price impact predictions** with confidence scores
 
-## Demo mode
+## Quick start (demo mode)
 
-Without an AISstream API key, the app auto-enables demo mode:
-- 30 simulated ships across the globe (real hotzone positions)
-- After ~20s: a tanker goes dark in the Strait of Hormuz
-- After ~45s: an unknown vessel appears nearby (STS rendezvous simulation)
-- After ~70s: a Black Sea tanker goes dark
-- All 3 incidents trigger the full Claude AI pipeline with a real intelligence report
+Demo mode runs entirely without live API keys — only `ANTHROPIC_API_KEY` is required.
+
+**1. Start the backend**
+
+```bash
+cd backend
+
+# Windows
+python -m venv .venv && .venv\Scripts\activate
+# macOS / Linux
+python -m venv .venv && source .venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn main:app --port 8000 --reload
+```
+
+**2. Start the frontend** (new terminal)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+**3. Open the app**
+
+Navigate to [http://localhost:5173](http://localhost:5173).
+
+Demo mode activates automatically when `AISSTREAM_API_KEY` is absent from `.env`.
+You can also force it explicitly: add `DEMO_MODE=true` to `backend/.env`.
+
+---
+
+### What happens in demo mode
+
+The simulation runs on a fixed timeline so you can watch the full AI pipeline fire end-to-end:
+
+| Time | Event | Region | Incident count |
+|------|-------|--------|---------------|
+| 0 s | Backend starts, 24 ships initialised | — | — |
+| 5 s | Ship positions begin streaming to the map | — | — |
+| 20 s | **PERSIAN STAR** AIS signal lost (tanker goes dark) | Strait of Hormuz | 1 / 3 |
+| 45 s | **UNKNOWN VESSEL** appears 0.3 NM from dark ship (STS rendezvous) | Strait of Hormuz | 2 / 3 |
+| 70 s | **FALCON SPIRIT** AIS signal lost — threshold reached | Strait of Hormuz | **3 / 3 ✓** |
+| ~75 s | Evaluator Agent finishes scoring INC-003 → **Reporter Agent starts** | — | — |
+| ~80–120 s | Reporter drafts intelligence report; Critic reviews up to 3 rounds | — | — |
+| ~120 s | Final approved report broadcast — commodity price predictions displayed | — | — |
+| 95 s | **ODESSA SPIRIT** goes dark (starts a fresh Black Sea incident chain) | Black Sea | 1 / 3 |
+
+The Evaluator Agent runs for each incident in parallel (typically 5–15 s per call).
+The Reporter + Critic pipeline begins as soon as the third incident in a region is evaluated.
+
+> **Tip:** open the browser console (F12 → Network → WS → `/ws`) to watch the raw WebSocket events — `incident`, `evaluation`, `agent_status`, and finally `report` — arrive in real time.
