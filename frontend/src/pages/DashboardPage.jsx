@@ -127,9 +127,10 @@ export default function DashboardPage({ onHome }) {
     },
   })
 
-  const trackShip = async () => {
-    const mmsi = mmsiInput.trim()
+  const trackShip = async (mmsiOverride) => {
+    const mmsi = mmsiOverride != null ? String(mmsiOverride).trim() : mmsiInput.trim()
     if (!mmsi) return
+    if (mmsiOverride != null) setMmsiInput(String(mmsiOverride))
     setGfwPath(null)
     setUnmatchedPoints(null)
     const vessel = ships.find((s) => String(s.mmsi) === mmsi)
@@ -351,7 +352,10 @@ export default function DashboardPage({ onHome }) {
             hotzones={visibleHotzones}
             incidents={[]}
             selectedShip={selectedShip}
-            onSelectShip={setSelectedShip}
+            onSelectShip={(ship) => {
+              setSelectedShip(ship)
+              if (!ship) { setGfwPath(null); setUnmatchedPoints(null) }
+            }}
             editZones={editZones}
             zoneOverrides={zoneOverrides}
             onZoneChange={handleZoneChange}
@@ -359,8 +363,7 @@ export default function DashboardPage({ onHome }) {
             onAddZone={handleAddZone}
             gfwPath={gfwPath}
             unmatchedPoints={unmatchedPoints}
-            mmsiInput={mmsiInput}
-            onTrackShip={trackShip}
+            onTrackByMmsi={(mmsi) => trackShip(mmsi)}
           />
         </div>
 

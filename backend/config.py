@@ -40,13 +40,13 @@ HOTZONES = {
         "color": "#ff6b00",
         "description": "Major route for Ukrainian/Russian commodity exports",
     },
-    "Red Sea": {
-        "min_lat": 11.0, "max_lat": 30.0,
-        "min_lon": 32.0, "max_lon": 44.0,
-        "center_lat": 20.0, "center_lon": 38.0,
+    "Red Sea / Gulf of Aden": {
+        "min_lat": 9.5, "max_lat": 15.5,
+        "min_lon": 37.5, "max_lon": 51.5,
+        "center_lat": 12.5, "center_lon": 44.5,
         "commodities": ["Brent Crude Oil", "Shipping Freight Index"],
         "color": "#ff6b00",
-        "description": "Suez Canal access route — Houthi threat zone",
+        "description": "Bab-el-Mandeb strait — Houthi threat zone",
     },
 }
 
