@@ -58,7 +58,12 @@ export default function App() {
     onShips: (data) => setShips(data),
     onAgentStatus: (data) => {
       setAgentStatus(data)
-      if (data.stage === 'error') {
+      if (data.stage === 'aborted') {
+        setInvestigating(false)
+        setAgentStatus({ stage: 'idle', message: '' })
+        addLog({ kind: 'system', text: `Investigation aborted` })
+      } else if (data.stage === 'error') {
+        setInvestigating(false)
         addLog({ kind: 'error', text: `Pipeline error: ${data.message}` })
       } else if (data.stage === 'critic_result') {
         addLog({ kind: 'critic', text: `Critic round ${data.round}: ${data.approved ? '✓ APPROVED' : '✗ REVISE'} (quality ${data.quality_score}/100)`, approved: data.approved })
@@ -107,6 +112,17 @@ export default function App() {
       setInvestigatedVessel(null)
       addLog({ kind: 'error', text: `Failed to reach backend for MMSI ${mmsi}` })
     }
+  }
+
+  const abortInvestigation = async () => {
+    try {
+      await fetch('http://localhost:8000/investigate/abort', { method: 'POST' })
+    } catch {
+      // Backend unreachable — reset state client-side anyway
+    }
+    setInvestigating(false)
+    setAgentStatus({ stage: 'idle', message: '' })
+    addLog({ kind: 'system', text: 'Investigation aborted' })
   }
 
   const switchMode = async (toDemo) => {
@@ -196,6 +212,7 @@ export default function App() {
           logs={logs}
           onOpenReport={() => setShowReport(true)}
           hasReport={!!report}
+          onAbort={abortInvestigation}
         />
       </div>
 

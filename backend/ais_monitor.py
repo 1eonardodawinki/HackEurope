@@ -65,16 +65,16 @@ def in_any_hotzone(lat: float, lon: float) -> str | None:
 
 DEMO_SHIPS_SPEC = [
     # Strait of Hormuz traffic
-    {"mmsi": 311000001, "name": "GULF PIONEER", "lat": 25.8, "lon": 56.2, "cog": 120, "sog": 11.0, "type": "tanker"},
+    {"mmsi": 311000001, "name": "GULF PIONEER", "lat": 26.4, "lon": 56.5, "cog": 120, "sog": 11.0, "type": "tanker"},
     {"mmsi": 311000002, "name": "HORMUZ TRADER", "lat": 26.2, "lon": 57.1, "cog": 300, "sog": 9.5,  "type": "tanker"},
     {"mmsi": 311000003, "name": "PERSIAN STAR",  "lat": 25.5, "lon": 58.0, "cog": 270, "sog": 13.0, "type": "tanker"},
     {"mmsi": 311000004, "name": "FALCON SPIRIT", "lat": 26.5, "lon": 56.8, "cog": 90,  "sog": 7.5,  "type": "cargo"},
-    {"mmsi": 311000005, "name": "ARABIAN CROWN", "lat": 25.9, "lon": 57.5, "cog": 280, "sog": 10.0, "type": "tanker"},
+    {"mmsi": 311000005, "name": "ARABIAN CROWN", "lat": 25.0, "lon": 58.5, "cog": 280, "sog": 10.0, "type": "tanker"},
     # Black Sea traffic
     {"mmsi": 212000001, "name": "BLACK SEA VENTURE", "lat": 43.0, "lon": 31.5, "cog": 50,  "sog": 12.0, "type": "bulk_carrier"},
     {"mmsi": 212000002, "name": "ODESSA SPIRIT",     "lat": 44.5, "lon": 33.0, "cog": 220, "sog": 8.5,  "type": "tanker"},
     {"mmsi": 212000003, "name": "BOSPHORUS KING",    "lat": 42.0, "lon": 29.5, "cog": 45,  "sog": 14.0, "type": "container"},
-    {"mmsi": 212000004, "name": "DANUBE DREAM",      "lat": 45.5, "lon": 30.5, "cog": 180, "sog": 7.0,  "type": "bulk_carrier"},
+    {"mmsi": 212000004, "name": "DANUBE DREAM",      "lat": 44.0, "lon": 32.0, "cog": 180, "sog": 7.0,  "type": "bulk_carrier"},
     # Red Sea traffic
     {"mmsi": 538000001, "name": "SUEZ EXPRESS",   "lat": 27.0, "lon": 33.5, "cog": 160, "sog": 15.0, "type": "container"},
     {"mmsi": 538000002, "name": "RED SEA GLORY",  "lat": 20.5, "lon": 38.2, "cog": 350, "sog": 11.0, "type": "tanker"},
@@ -82,7 +82,7 @@ DEMO_SHIPS_SPEC = [
     # Global traffic (outside hotzones — background)
     {"mmsi": 636000001, "name": "ATLANTIC HORIZON",  "lat": 35.0, "lon": -10.0, "cog": 75,  "sog": 16.0, "type": "container"},
     {"mmsi": 636000002, "name": "PACIFIC STAR",      "lat": 20.0, "lon": 120.0, "cog": 280, "sog": 14.5, "type": "container"},
-    {"mmsi": 636000003, "name": "CAPE GLORY",        "lat": -34.0,"lon": 18.0,  "cog": 90,  "sog": 12.0, "type": "bulk_carrier"},
+    {"mmsi": 636000003, "name": "CAPE GLORY",        "lat": -35.0,"lon": 14.0,  "cog": 90,  "sog": 12.0, "type": "bulk_carrier"},
     {"mmsi": 636000004, "name": "NORTHERN SPIRIT",   "lat": 55.0, "lon": 0.0,   "cog": 200, "sog": 10.0, "type": "tanker"},
     {"mmsi": 636000005, "name": "MEDITERRANEAN SUN", "lat": 38.0, "lon": 18.0,  "cog": 135, "sog": 13.0, "type": "cargo"},
     {"mmsi": 636000006, "name": "INDIAN OCEAN STAR", "lat": 10.0, "lon": 65.0,  "cog": 250, "sog": 11.5, "type": "tanker"},
@@ -90,7 +90,7 @@ DEMO_SHIPS_SPEC = [
     {"mmsi": 636000008, "name": "WEST AFRICA PRIDE", "lat": 5.0,  "lon": 0.0,   "cog": 45,  "sog": 9.0,  "type": "bulk_carrier"},
     {"mmsi": 636000009, "name": "GULF OF MEXICO WAVE","lat": 25.0, "lon": -90.0, "cog": 95,  "sog": 8.0,  "type": "tanker"},
     {"mmsi": 636000010, "name": "NORTH SEA RANGER",  "lat": 58.0, "lon": 3.0,   "cog": 270, "sog": 12.0, "type": "cargo"},
-    {"mmsi": 636000011, "name": "SUEZ MARINER",      "lat": 30.0, "lon": 32.0,  "cog": 340, "sog": 14.0, "type": "container"},
+    {"mmsi": 636000011, "name": "SUEZ MARINER",      "lat": 24.0, "lon": 37.5,  "cog": 340, "sog": 14.0, "type": "container"},
     {"mmsi": 636000012, "name": "BAY OF BENGAL",     "lat": 15.0, "lon": 85.0,  "cog": 200, "sog": 10.5, "type": "bulk_carrier"},
 ]
 
@@ -124,7 +124,9 @@ class AISMonitor:
         # Initialise demo ships
         if self._demo_mode:
             for spec in DEMO_SHIPS_SPEC:
-                self._ships[spec["mmsi"]] = {**spec, "trail": [], "status": "active", "in_hotzone": in_any_hotzone(spec["lat"], spec["lon"])}
+                # PERSIAN STAR starts dark immediately — it's the key demo incident vessel
+                initial_status = "dark" if spec["mmsi"] == DARK_SHIP_MMSI else "active"
+                self._ships[spec["mmsi"]] = {**spec, "trail": [], "status": initial_status, "in_hotzone": in_any_hotzone(spec["lat"], spec["lon"])}
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -290,7 +292,12 @@ class AISMonitor:
         subscribe_msg = json.dumps({
             "APIKey": AISSTREAM_API_KEY,
             "BoundingBoxes": bboxes,
-            "FilterMessageTypes": ["PositionReport", "ShipStaticData"],
+            "FilterMessageTypes": [
+                "PositionReport",               # Class A (cargo, tankers)
+                "ExtendedClassBPositionReport",  # Class B (smaller vessels)
+                "StandardClassBPositionReport",  # Class B standard format
+                "ShipStaticData",
+            ],
         })
 
         while self._running:
@@ -416,9 +423,26 @@ class AISMonitor:
                     del _close_since[pair]
 
     async def _live_broadcast_loop(self):
-        """Broadcast all current ship positions every 5 seconds in live mode."""
+        """Broadcast current ship positions every 2 seconds; evict ships silent for 10+ min."""
         while self._running:
-            await asyncio.sleep(5)
+            await asyncio.sleep(2)
+
+            # Remove ships that haven't transmitted recently.
+            # Dark ships are kept for 30 min (they went silent intentionally);
+            # all others are evicted after 10 min to keep the count accurate.
+            now = datetime.now(timezone.utc)
+            cutoff_active = now - timedelta(minutes=10)
+            cutoff_dark   = now - timedelta(minutes=30)
+            stale = [
+                mmsi for mmsi, ship in list(self._ships.items())
+                if ship.get("last_seen") and
+                datetime.fromisoformat(ship["last_seen"].replace("Z", "+00:00")) < (
+                    cutoff_dark if ship.get("status") == "dark" else cutoff_active
+                )
+            ]
+            for mmsi in stale:
+                del self._ships[mmsi]
+
             if self._ships:
                 await self.on_ship_update(self.get_ships())
 
@@ -429,8 +453,13 @@ class AISMonitor:
         if not mmsi:
             return
 
-        if msg_type == "PositionReport":
-            pos = msg.get("Message", {}).get("PositionReport", {})
+        if msg_type in ("PositionReport", "ExtendedClassBPositionReport", "StandardClassBPositionReport"):
+            inner_key = (
+                "PositionReport" if msg_type == "PositionReport"
+                else "ExtendedClassBPositionReport" if msg_type == "ExtendedClassBPositionReport"
+                else "StandardClassBPositionReport"
+            )
+            pos = msg.get("Message", {}).get(inner_key, {})
             lat = pos.get("Latitude", 0)
             lon = pos.get("Longitude", 0)
             sog = pos.get("Sog", 0)
