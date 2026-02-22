@@ -5,10 +5,6 @@ Streams live ship positions and intelligence alerts via WebSocket.
 
 import asyncio
 import json
-import os
-import shutil
-import subprocess
-import tempfile
 from contextlib import asynccontextmanager
 from typing import Set, Any
 
@@ -18,7 +14,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from config import HOTZONES, DEMO_MODE, AISSTREAM_API_KEY
-from report_renderer import render_latex
+from report_renderer import render_pdf
 from ais_monitor import AISMonitor
 from incident_detector import IncidentDetector
 from ml_model import get_dark_fleet_probability
@@ -257,48 +253,24 @@ async def switch_mode(body: ModeRequest):
 
 @app.post("/report/pdf")
 async def generate_pdf(report: dict = Body(...)):
-    """Generate a LaTeX PDF from a report dict. Returns PDF if pdflatex is available,
-    otherwise returns the .tex source as a plain-text download."""
-    latex_source = render_latex(report)
-
-    pdflatex = shutil.which('pdflatex')
-    if pdflatex:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tex_path = os.path.join(tmpdir, 'report.tex')
-            with open(tex_path, 'w', encoding='utf-8') as f:
-                f.write(latex_source)
-            try:
-                # Run twice so tabularx widths settle (first pass is usually enough for our doc)
-                for _ in range(2):
-                    subprocess.run(
-                        [pdflatex, '-interaction=nonstopmode', '-output-directory', tmpdir, tex_path],
-                        capture_output=True, timeout=60,
-                    )
-                pdf_path = os.path.join(tmpdir, 'report.pdf')
-                if os.path.exists(pdf_path):
-                    with open(pdf_path, 'rb') as f:
-                        pdf_bytes = f.read()
-                    print(f"[PDF] Generated {len(pdf_bytes):,} byte PDF")
-                    return Response(
-                        content=pdf_bytes,
-                        media_type='application/pdf',
-                        headers={'Content-Disposition': 'attachment; filename="intelligence-report.pdf"'},
-                    )
-                else:
-                    print("[PDF] pdflatex ran but no PDF produced — returning .tex source")
-            except subprocess.TimeoutExpired:
-                print("[PDF] pdflatex timed out — returning .tex source")
-            except Exception as e:
-                print(f"[PDF] pdflatex error: {e} — returning .tex source")
-    else:
-        print("[PDF] pdflatex not found on PATH — returning .tex source (install MiKTeX or TeX Live to enable PDF)")
-
-    # Fallback: serve the LaTeX source so the user can compile it themselves
-    return Response(
-        content=latex_source.encode('utf-8'),
-        media_type='text/plain; charset=utf-8',
-        headers={'Content-Disposition': 'attachment; filename="intelligence-report.tex"'},
-    )
+    """Generate a PDF from a report dict using ReportLab (no LaTeX required)."""
+    try:
+        pdf_bytes = render_pdf(report)
+        print(f"[PDF] Generated {len(pdf_bytes):,} byte PDF")
+        return Response(
+            content=pdf_bytes,
+            media_type='application/pdf',
+            headers={'Content-Disposition': 'attachment; filename="intelligence-report.pdf"'},
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[PDF] render_pdf error: {e}")
+        return Response(
+            content=f"PDF generation failed: {e}".encode('utf-8'),
+            media_type='text/plain; charset=utf-8',
+            status_code=500,
+        )
 
 
 # ── WebSocket Endpoint ────────────────────────────────────────────────────────
