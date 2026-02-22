@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 
-const WS_URL = 'ws://localhost:8000/ws'
+const WS_URL = import.meta.env.PROD
+  ? `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`
+  : 'ws://localhost:8000/ws'
 
 export function useWebSocket(handlers) {
   const ws = useRef(null)

@@ -1,0 +1,10 @@
+node_modules
+frontend/node_modules
+__pycache__
+*.pyc
+.git
+.env
+backend/ml/data/*.csv
+backend/ml/outputs/
+backend/ml/models/shadow_fleet_model_*.pkl
+.DS_Store

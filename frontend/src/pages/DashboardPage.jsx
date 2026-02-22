@@ -4,6 +4,9 @@ import IncidentPanel from '../components/IncidentPanel.jsx'
 import ReportModal from '../components/ReportModal.jsx'
 import { useWebSocket } from '../hooks/useWebSocket.js'
 
+const API = import.meta.env.PROD ? '' : 'http://localhost:8000'
+const TRACK_API = import.meta.env.PROD ? '' : 'http://localhost:8001'
+
 export default function DashboardPage({ onHome }) {
   const [ships, setShips] = useState([])
   const [hotzones, setHotzones] = useState({})
@@ -157,7 +160,7 @@ export default function DashboardPage({ onHome }) {
       const end = today.toISOString().slice(0, 10)
 
       const r = await fetch(
-        `http://localhost:8001/track?mmsi=${encodeURIComponent(mmsi)}&start=${start}&end=${end}`
+        `${TRACK_API}/track?mmsi=${encodeURIComponent(mmsi)}&start=${start}&end=${end}`
       )
       const data = await r.json()
 
@@ -188,7 +191,7 @@ export default function DashboardPage({ onHome }) {
     } catch {
       // Fallback to backend GFW path endpoint when track microservice is unavailable.
       try {
-        const r = await fetch(`http://localhost:8000/gfw-path?mmsi=${encodeURIComponent(mmsi)}`)
+        const r = await fetch(`${API}/gfw-path?mmsi=${encodeURIComponent(mmsi)}`)
         const data = await r.json()
         const normalized = normalizeBackendPath(data)
         setGfwPath(normalized || { mmsi, error: 'Invalid path response', path: [], metadata: {} })
@@ -205,7 +208,7 @@ export default function DashboardPage({ onHome }) {
     }
 
     try {
-      const r = await fetch(`http://localhost:8000/historical-unmatched?mmsi=${encodeURIComponent(mmsi)}`)
+      const r = await fetch(`${API}/historical-unmatched?mmsi=${encodeURIComponent(mmsi)}`)
       const data = await r.json()
       setUnmatchedPoints(data)
     } catch (err) {
@@ -236,7 +239,7 @@ export default function DashboardPage({ onHome }) {
 
     addLog({ kind: 'system', text: `Investigation launched for MMSI ${mmsi}` })
     try {
-      await fetch('http://localhost:8000/investigate', {
+      await fetch(`${API}/investigate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mmsi }),
@@ -248,7 +251,7 @@ export default function DashboardPage({ onHome }) {
     }
 
     try {
-      const r = await fetch(`http://localhost:8000/historical-unmatched?mmsi=${encodeURIComponent(mmsi)}`)
+      const r = await fetch(`${API}/historical-unmatched?mmsi=${encodeURIComponent(mmsi)}`)
       const data = await r.json()
       setUnmatchedPoints(data)
     } catch (err) {
@@ -263,7 +266,7 @@ export default function DashboardPage({ onHome }) {
 
   const abortInvestigation = async () => {
     try {
-      await fetch('http://localhost:8000/investigate/abort', { method: 'POST' })
+      await fetch(`${API}/investigate/abort`, { method: 'POST' })
     } catch {
       // Backend unreachable — reset state client-side anyway
     }
@@ -276,7 +279,7 @@ export default function DashboardPage({ onHome }) {
     if (modeSwitching) return
     setModeSwitching(true)
     try {
-      await fetch('http://localhost:8000/mode', {
+      await fetch(`${API}/mode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ demo: toDemo }),
