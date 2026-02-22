@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+const API = import.meta.env.PROD ? '' : 'http://localhost:8000'
+
 export default function ReportModal({ report, onClose }) {
   const [showReasoning, setShowReasoning] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -10,7 +12,7 @@ export default function ReportModal({ report, onClose }) {
     if (downloading) return
     setDownloading(true)
     try {
-      const resp = await fetch('http://localhost:8000/report/pdf', {
+      const resp = await fetch(`${API}/report/pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(report),
