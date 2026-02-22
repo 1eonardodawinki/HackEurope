@@ -133,6 +133,36 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         },
       })
 
+      // ── Dark event markers (last known position before going dark) ──
+      map.current.addSource('dark-events', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+      map.current.addLayer({
+        id: 'dark-events-ring',
+        type: 'circle',
+        source: 'dark-events',
+        paint: {
+          'circle-radius': 7,
+          'circle-color': 'transparent',
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#ff3355',
+          'circle-stroke-opacity': 0.85,
+          'circle-opacity': 0,
+        },
+      })
+      map.current.addLayer({
+        id: 'dark-events-dot',
+        type: 'circle',
+        source: 'dark-events',
+        paint: {
+          'circle-radius': 3,
+          'circle-color': '#ff3355',
+          'circle-opacity': 0.9,
+          'circle-stroke-width': 0,
+        },
+      })
+
       // ── Ship arrow icon ──
       const sz = 24
       const cv = document.createElement('canvas')
@@ -334,6 +364,25 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     }
   }, [ships, mapReady, typeFilter])
 
+  // ── Dark event rings — SAR detections for the selected MMSI (no AIS match) ──
+  useEffect(() => {
+    if (!mapReady || !map.current) return
+    const src = map.current.getSource('dark-events')
+    if (!src) return
+    if (!unmatchedPoints?.points?.length || unmatchedPoints.error) {
+      src.setData({ type: 'FeatureCollection', features: [] })
+      return
+    }
+    const features = unmatchedPoints.points
+      .filter(p => Number.isFinite(Number(p.lon)) && Number.isFinite(Number(p.lat)))
+      .map(p => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [Number(p.lon), Number(p.lat)] },
+        properties: { timestamp: p.timestamp || '' },
+      }))
+    src.setData({ type: 'FeatureCollection', features })
+  }, [unmatchedPoints, mapReady])
+
   // ── Update GFW 1-year path ────────────────────────────────────────────────
   useEffect(() => {
     if (!mapReady || !map.current) return
@@ -522,6 +571,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         <LegendItem color="var(--accent)" label="Active" />
         <LegendItem color="var(--danger)" label="Suspicious" />
         <LegendItem color="#444" label="Dark" />
+        <LegendItem color="var(--danger)" ring label="Went Dark" />
         <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 8 }}>
           <LegendItem color="var(--danger)" dashed label="Hormuz" />
           <LegendItem color="var(--warning)" dashed label="Black Sea / Red Sea" />
@@ -540,12 +590,16 @@ function Row({ label, value, valueColor }) {
   )
 }
 
-function LegendItem({ color, label, dashed }) {
+function LegendItem({ color, label, dashed, ring }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
       {dashed
         ? <div style={{ width: 14, height: 1, borderTop: `1px dashed ${color}`, opacity: 0.7 }} />
-        : <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+        : ring
+          ? <div style={{ width: 10, height: 10, borderRadius: '50%', border: `1.5px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 3, height: 3, borderRadius: '50%', background: color }} />
+            </div>
+          : <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
       }
       <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 0.5 }}>{label}</span>
     </div>
