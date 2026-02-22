@@ -5,6 +5,8 @@ Streams live ship positions and intelligence alerts via WebSocket.
 
 import asyncio
 import json
+import os
+import sqlite3
 from contextlib import asynccontextmanager
 from typing import Set, Any
 
@@ -21,7 +23,55 @@ from ml_model import get_dark_fleet_probability
 from agents.investigation_agents import run_parallel_investigation
 from agents.reporter_agent import generate_investigation_report
 from data_fetchers.gfw_fetcher import fetch_vessel_path
+from local_mmsi_context import load_mmsi_context
 import database as db
+
+HISTORICAL_DB_PATH = os.path.join(os.path.dirname(__file__), "historical_unmatched.db")
+
+
+def fetch_unmatched_points(mmsi: str) -> dict[str, Any]:
+    """Return all unmatched historical points for an MMSI from local SQLite."""
+    if not os.path.exists(HISTORICAL_DB_PATH):
+        return {
+            "mmsi": mmsi,
+            "points": [],
+            "metadata": {"point_count": 0, "data_source": "historical_unmatched"},
+            "error": "historical_unmatched.db not found",
+        }
+
+    conn = sqlite3.connect(HISTORICAL_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT lat, lon, timestamp
+            FROM historical_detections
+            WHERE CAST(mmsi AS TEXT) = ?
+              AND lat IS NOT NULL
+              AND lon IS NOT NULL
+            ORDER BY timestamp
+            """,
+            (mmsi,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    points = [
+        {
+            "lat": row["lat"],
+            "lon": row["lon"],
+            "timestamp": row["timestamp"],
+        }
+        for row in rows
+    ]
+    return {
+        "mmsi": mmsi,
+        "points": points,
+        "metadata": {
+            "point_count": len(points),
+            "data_source": "historical_unmatched",
+        },
+    }
 
 # ── WebSocket Manager ─────────────────────────────────────────────────────────
 
@@ -146,10 +196,22 @@ class InvestigationRequest(BaseModel):
     region: str = ""
 
 
-async def _run_investigation(mmsi: str, vessel_name: str, flag_state: str, region: str):
+async def _run_investigation(
+    mmsi: str,
+    vessel_name: str,
+    flag_state: str,
+    region: str,
+    local_data: dict | None = None,
+):
     """Background task: run the full investigation pipeline and broadcast results."""
     global _investigation_task
-    vessel_info = {"mmsi": mmsi, "vessel_name": vessel_name, "flag_state": flag_state, "region": region}
+    vessel_info = {
+        "mmsi": mmsi,
+        "vessel_name": vessel_name,
+        "flag_state": flag_state,
+        "region": region,
+        "local_data": local_data or {},
+    }
 
     async def progress(msg: dict):
         await manager.broadcast({"type": "agent_status", "data": msg})
@@ -229,7 +291,10 @@ async def investigate(body: InvestigationRequest):
     # Cancel any running investigation before starting a new one
     if _investigation_task and not _investigation_task.done():
         _investigation_task.cancel()
-    _investigation_task = asyncio.create_task(_run_investigation(mmsi, vessel_name, flag_state, region))
+    local_data = await asyncio.to_thread(load_mmsi_context, mmsi)
+    _investigation_task = asyncio.create_task(
+        _run_investigation(mmsi, vessel_name, flag_state, region, local_data=local_data)
+    )
 
     # Fetch GFW 1-year path in background (sync call — run in executor)
     async def _broadcast_gfw_path():
@@ -242,6 +307,22 @@ async def investigate(body: InvestigationRequest):
                 "data": {"mmsi": mmsi, "error": "Failed to fetch vessel path", "path": [], "metadata": {}},
             })
     asyncio.create_task(_broadcast_gfw_path())
+
+    async def _broadcast_unmatched_points():
+        try:
+            result = await asyncio.to_thread(fetch_unmatched_points, mmsi)
+            await manager.broadcast({"type": "unmatched_points", "data": result})
+        except Exception:
+            await manager.broadcast({
+                "type": "unmatched_points",
+                "data": {
+                    "mmsi": mmsi,
+                    "points": [],
+                    "metadata": {"point_count": 0, "data_source": "historical_unmatched"},
+                    "error": "Failed to fetch unmatched historical points",
+                },
+            })
+    asyncio.create_task(_broadcast_unmatched_points())
 
     return {"status": "started", "mmsi": mmsi}
 
@@ -258,6 +339,30 @@ async def get_gfw_path(mmsi: str):
         return result
     except Exception:
         return {"mmsi": mmsi, "error": "Failed to fetch path", "path": [], "metadata": {}}
+
+
+@app.get("/historical-unmatched")
+async def get_historical_unmatched(mmsi: str):
+    """Fetch unmatched historical points for map overlay."""
+    mmsi = mmsi.strip()
+    if not mmsi:
+        return {
+            "error": "MMSI required",
+            "mmsi": "",
+            "points": [],
+            "metadata": {"point_count": 0, "data_source": "historical_unmatched"},
+        }
+    try:
+        result = await asyncio.to_thread(fetch_unmatched_points, mmsi)
+        await manager.broadcast({"type": "unmatched_points", "data": result})
+        return result
+    except Exception:
+        return {
+            "mmsi": mmsi,
+            "error": "Failed to fetch unmatched historical points",
+            "points": [],
+            "metadata": {"point_count": 0, "data_source": "historical_unmatched"},
+        }
 
 
 @app.post("/mode")

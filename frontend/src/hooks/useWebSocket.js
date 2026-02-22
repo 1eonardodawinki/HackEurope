@@ -20,6 +20,7 @@ export function useWebSocket(handlers) {
       case 'mode_change':         h.onModeChange?.(msg.data); break
       case 'investigation_start': h.onInvestigationStart?.(msg.data); break
       case 'gfw_path': h.onGfwPath?.(msg.data); break
+      case 'unmatched_points': h.onUnmatchedPoints?.(msg.data); break
       case 'heartbeat':    break
       default: break
     }
