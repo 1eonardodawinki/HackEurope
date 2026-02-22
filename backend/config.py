@@ -6,6 +6,7 @@ load_dotenv()
 # ── API Keys ─────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 AISSTREAM_API_KEY = os.getenv("AISSTREAM_API_KEY", "")
+GFW_API_TOKEN = os.getenv("GFW_API_TOKEN", "")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
 

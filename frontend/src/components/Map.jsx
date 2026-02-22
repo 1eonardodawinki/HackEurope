@@ -42,7 +42,7 @@ function buildHotzoneFeatures(hotzones, overrides) {
   })
 }
 
-export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange }) {
+export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, gfwPath, mmsiInput, onTrackShip }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
   const shipsData = useRef({})
@@ -100,6 +100,18 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         type: 'line',
         source: 'ship-trails',
         paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.5 },
+      })
+
+      // ── GFW 1-year path (investigated vessel) ──
+      map.current.addSource('gfw-path', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+      map.current.addLayer({
+        id: 'gfw-path',
+        type: 'line',
+        source: 'gfw-path',
+        paint: { 'line-color': '#00e5ff', 'line-width': 2, 'line-opacity': 0.7 },
       })
 
       // ── Ship arrow icon ──
@@ -303,6 +315,41 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     }
   }, [ships, mapReady, typeFilter])
 
+  // ── Update GFW 1-year path ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !map.current) return
+    const src = map.current.getSource('gfw-path')
+    if (!src) return
+
+    if (!gfwPath?.path?.length || gfwPath.error) {
+      src.setData({ type: 'FeatureCollection', features: [] })
+      return
+    }
+
+    // Use path_segments when available (avoids drawing across large voyage gaps)
+    const segments = gfwPath.path_segments || [gfwPath.path]
+    const features = segments
+      .filter((seg) => seg && seg.length >= 2)
+      .map((seg) => ({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: seg.map((p) => [p.lon, p.lat]),
+        },
+      }))
+    src.setData({ type: 'FeatureCollection', features })
+
+    const allCoords = gfwPath.path.map((p) => [p.lon, p.lat])
+    if (allCoords.length >= 2) {
+      const bbox = [
+        [Math.min(...allCoords.map((c) => c[0])), Math.min(...allCoords.map((c) => c[1]))],
+        [Math.max(...allCoords.map((c) => c[0])), Math.max(...allCoords.map((c) => c[1]))],
+      ]
+      map.current.fitBounds(bbox, { padding: 80, maxZoom: 8, duration: 1200 })
+    }
+  }, [gfwPath, mapReady])
+
   // ── Update selection ring ─────────────────────────────────────────────────
   useEffect(() => {
     if (!mapReady || !map.current) return
@@ -372,16 +419,31 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-      {/* Type filter bar */}
+      {/* Type filter bar + Track Ship */}
       <div style={styles.filterBar}>
-        {['all', 'tanker', 'cargo', 'fishing'].map(t => (
-          <button key={t} onClick={() => setTypeFilter(t)} style={{
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['all', 'tanker', 'cargo', 'fishing'].map(t => (
+            <button key={t} onClick={() => setTypeFilter(t)} style={{
+              ...styles.filterBtn,
+              ...(typeFilter === t ? styles.filterBtnActive : {}),
+            }}>
+              {t.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => onTrackShip?.()}
+          disabled={!mmsiInput?.trim()}
+          style={{
             ...styles.filterBtn,
-            ...(typeFilter === t ? styles.filterBtnActive : {}),
-          }}>
-            {t.toUpperCase()}
-          </button>
-        ))}
+            marginTop: 6,
+            opacity: mmsiInput?.trim() ? 1 : 0.5,
+            cursor: mmsiInput?.trim() ? 'pointer' : 'not-allowed',
+          }}
+          title="Show 1-year path (enter MMSI first)"
+        >
+          TRACK SHIP
+        </button>
       </div>
 
       {/* Ship tooltip */}
@@ -447,7 +509,7 @@ function LegendItem({ color, label, dashed }) {
 const styles = {
   filterBar: {
     position: 'absolute', top: 16, right: 16,
-    display: 'flex', gap: 4, zIndex: 10,
+    display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0, zIndex: 10,
   },
   filterBtn: {
     padding: '5px 10px',

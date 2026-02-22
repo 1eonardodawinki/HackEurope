@@ -9,7 +9,7 @@ const STATUS_COLORS = {
 const TAB_LABELS = { vessel: 'VESSEL', agents: 'AGENTS', log: 'LOG' }
 
 export default function IncidentPanel({
-  investigatedVessel, investigating, agentStatus, logs, onOpenReport, hasReport, onAbort
+  investigatedVessel, investigating, agentStatus, logs, onOpenReport, hasReport, onAbort, gfwPath
 }) {
   const [activeTab, setActiveTab] = useState('vessel')
 
@@ -38,7 +38,7 @@ export default function IncidentPanel({
         ))}
       </div>
 
-      {activeTab === 'vessel'  && <VesselTab investigatedVessel={investigatedVessel} investigating={investigating} />}
+      {activeTab === 'vessel'  && <VesselTab investigatedVessel={investigatedVessel} investigating={investigating} gfwPath={gfwPath} />}
       {activeTab === 'agents' && <AgentsTab agentStatus={agentStatus} />}
       {activeTab === 'log'    && <LogTab logs={logs || []} onOpenReport={onOpenReport} hasReport={hasReport} />}
 
@@ -56,7 +56,7 @@ export default function IncidentPanel({
   )
 }
 
-function VesselTab({ investigatedVessel, investigating }) {
+function VesselTab({ investigatedVessel, investigating, gfwPath }) {
   if (!investigatedVessel) {
     return (
       <div style={styles.empty}>
@@ -111,7 +111,23 @@ function VesselTab({ investigatedVessel, investigating }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <MetaRow label="MMSI" value={investigatedVessel.mmsi} />
           {investigatedVessel.notFound ? (
-            <MetaRow label="AIS STATUS" value="NOT IN CURRENT FEED" color="var(--text3)" />
+            <>
+              <MetaRow label="AIS STATUS" value="NOT IN CURRENT FEED" color="var(--text3)" />
+              {gfwPath && (
+                <>
+                  <MetaRow
+                    label="1-YEAR PATH"
+                    value={gfwPath.error ? 'Not available' : `${gfwPath.metadata?.point_count || 0} points from GFW`}
+                    valueColor={gfwPath.error ? 'var(--text3)' : 'var(--accent)'}
+                  />
+                  {!gfwPath.error && gfwPath.metadata?.data_source === 'event_locations' && (
+                    <div style={{ fontSize: 8, color: 'var(--text3)', marginTop: 2, letterSpacing: 0.5 }}>
+                      Based on port/event locations; path smoothed
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           ) : (
             <>
               {investigatedVessel.lat != null && (
@@ -128,6 +144,20 @@ function VesselTab({ investigatedVessel, investigating }) {
               )}
               {investigatedVessel.type && (
                 <MetaRow label="TYPE" value={investigatedVessel.type.toUpperCase()} />
+              )}
+              {gfwPath && (
+                <>
+                  <MetaRow
+                    label="1-YEAR PATH"
+                    value={gfwPath.error ? 'Not available' : `${gfwPath.metadata?.point_count || 0} points from GFW`}
+                    valueColor={gfwPath.error ? 'var(--text3)' : 'var(--accent)'}
+                  />
+                  {!gfwPath.error && gfwPath.metadata?.data_source === 'event_locations' && (
+                    <div style={{ fontSize: 8, color: 'var(--text3)', marginTop: 2, letterSpacing: 0.5 }}>
+                      Based on port/event locations; path smoothed
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
