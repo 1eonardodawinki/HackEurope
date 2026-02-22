@@ -278,9 +278,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     if (!mapReady || !map.current) return
     ships.forEach(s => { shipsData.current[s.mmsi] = s })
 
-    const MAIN_TYPES = ['tanker', 'cargo', 'passenger', 'fishing']
     const visibleShips = typeFilter === 'all' ? ships
-      : typeFilter === 'other' ? ships.filter(s => !MAIN_TYPES.includes(s.type))
       : ships.filter(s => s.type === typeFilter)
 
     const shipFeatures = visibleShips.map(ship => ({
@@ -376,7 +374,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
 
       {/* Type filter bar */}
       <div style={styles.filterBar}>
-        {['all', 'tanker', 'cargo', 'passenger', 'fishing', 'other'].map(t => (
+        {['all', 'tanker', 'cargo', 'fishing'].map(t => (
           <button key={t} onClick={() => setTypeFilter(t)} style={{
             ...styles.filterBtn,
             ...(typeFilter === t ? styles.filterBtnActive : {}),
