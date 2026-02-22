@@ -129,18 +129,33 @@ async def lifespan(app: FastAPI):
     async def broadcast(msg: dict):
         await manager.broadcast(msg)
 
-    detector = IncidentDetector(broadcast_callback=broadcast)
-    monitor = AISMonitor(on_ship_update=_on_ship_update, on_incident=_on_incident, demo_mode=_current_demo_mode)
-    _ais_task = asyncio.create_task(monitor.start())
+    try:
+        detector = IncidentDetector(broadcast_callback=broadcast)
+        monitor = AISMonitor(
+            on_ship_update=_on_ship_update,
+            on_incident=_on_incident,
+            demo_mode=_current_demo_mode,
+        )
+        _ais_task = asyncio.create_task(monitor.start())
+    except Exception as e:
+        # Never fail process startup because monitoring init failed; keep API/health alive.
+        import traceback
+        print(f"[Startup] Monitoring init failed: {e}")
+        traceback.print_exc()
+        detector = IncidentDetector(broadcast_callback=broadcast)
+        monitor = None
+        _ais_task = None
 
     yield  # App running
 
-    monitor.stop()
-    _ais_task.cancel()
-    try:
-        await _ais_task
-    except asyncio.CancelledError:
-        pass
+    if monitor:
+        monitor.stop()
+    if _ais_task:
+        _ais_task.cancel()
+        try:
+            await _ais_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(title="Maritime Sentinel", lifespan=lifespan)

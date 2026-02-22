@@ -120,7 +120,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/dark-v11',
       center: [45, 25],
-      zoom: 3.5,
+      zoom: 2.2,
       projection: 'globe',
       attributionControl: false,
     })
