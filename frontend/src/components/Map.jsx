@@ -42,7 +42,7 @@ function buildHotzoneFeatures(hotzones, overrides) {
   })
 }
 
-export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, gfwPath, mmsiInput, onTrackShip }) {
+export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, gfwPath, unmatchedPoints, mmsiInput, onTrackShip }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
   const shipsData = useRef({})
@@ -112,6 +112,25 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         type: 'line',
         source: 'gfw-path',
         paint: { 'line-color': '#00e5ff', 'line-width': 2, 'line-opacity': 0.7 },
+      })
+
+      // ── Historical unmatched detections for investigated MMSI ──
+      map.current.addSource('unmatched-points', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+      map.current.addLayer({
+        id: 'unmatched-points',
+        type: 'circle',
+        source: 'unmatched-points',
+        paint: {
+          'circle-radius': 2.5,
+          'circle-color': '#ff9500',
+          'circle-opacity': 0.75,
+          'circle-stroke-width': 0.6,
+          'circle-stroke-color': '#1a1a1a',
+          'circle-stroke-opacity': 0.8,
+        },
       })
 
       // ── Ship arrow icon ──
@@ -349,6 +368,33 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       map.current.fitBounds(bbox, { padding: 80, maxZoom: 8, duration: 1200 })
     }
   }, [gfwPath, mapReady])
+
+  // ── Update unmatched historical points ────────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !map.current) return
+    const src = map.current.getSource('unmatched-points')
+    if (!src) return
+
+    if (!unmatchedPoints?.points?.length || unmatchedPoints.error) {
+      src.setData({ type: 'FeatureCollection', features: [] })
+      return
+    }
+
+    const features = unmatchedPoints.points
+      .filter((p) => Number.isFinite(Number(p.lon)) && Number.isFinite(Number(p.lat)))
+      .map((p) => ({
+        type: 'Feature',
+        properties: {
+          timestamp: p.timestamp || '',
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [Number(p.lon), Number(p.lat)],
+        },
+      }))
+
+    src.setData({ type: 'FeatureCollection', features })
+  }, [unmatchedPoints, mapReady])
 
   // ── Update selection ring ─────────────────────────────────────────────────
   useEffect(() => {
