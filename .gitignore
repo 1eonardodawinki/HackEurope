@@ -216,3 +216,10 @@ frontend/.env
 
 # Project secrets
 .env
+
+*.db-shm
+*.db-wal
+
+*.db
+*.db-shm
+*.db-wal

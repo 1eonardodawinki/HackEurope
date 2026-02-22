@@ -1,22 +1,11 @@
 import { useState, useEffect } from 'react'
 
-const STATUS_COLORS = {
-  active:     'var(--green)',
-  dark:       'var(--danger)',
-  suspicious: 'var(--warning)',
-}
-
-const TAB_LABELS = { vessel: 'VESSEL', agents: 'AGENTS', log: 'LOG' }
+const TAB_LABELS = { agents: 'AGENTS', log: 'LOG' }
 
 export default function IncidentPanel({
-  investigatedVessel, investigating, agentStatus, logs, onOpenReport, hasReport, onAbort, gfwPath
+  investigating, agentStatus, logs, onOpenReport, hasReport, onAbort
 }) {
-  const [activeTab, setActiveTab] = useState('vessel')
-
-  // Switch to VESSEL tab when a new investigation target is set
-  useEffect(() => {
-    if (investigatedVessel) setActiveTab('vessel')
-  }, [investigatedVessel?.mmsi])
+  const [activeTab, setActiveTab] = useState('agents')
 
   // Switch to AGENTS tab when the pipeline becomes active
   useEffect(() => {
@@ -38,7 +27,6 @@ export default function IncidentPanel({
         ))}
       </div>
 
-      {activeTab === 'vessel'  && <VesselTab investigatedVessel={investigatedVessel} investigating={investigating} gfwPath={gfwPath} />}
       {activeTab === 'agents' && <AgentsTab agentStatus={agentStatus} />}
       {activeTab === 'log'    && <LogTab logs={logs || []} onOpenReport={onOpenReport} hasReport={hasReport} />}
 
@@ -51,127 +39,6 @@ export default function IncidentPanel({
         <button style={styles.reportCta} onClick={onOpenReport}>
           VIEW INTELLIGENCE REPORT
         </button>
-      )}
-    </div>
-  )
-}
-
-function VesselTab({ investigatedVessel, investigating, gfwPath }) {
-  if (!investigatedVessel) {
-    return (
-      <div style={styles.empty}>
-        <div style={styles.emptyIcon}>
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <circle cx="14" cy="14" r="13" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
-            <circle cx="14" cy="14" r="8" stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
-            <circle cx="14" cy="14" r="2" fill="rgba(255,255,255,0.15)"/>
-          </svg>
-        </div>
-        <div style={{ color: 'var(--text3)', fontSize: 11, letterSpacing: 1 }}>NO ACTIVE INVESTIGATION</div>
-        <div style={{ color: 'var(--text3)', fontSize: 9, letterSpacing: 0.5, marginTop: 6, opacity: 0.6, textAlign: 'center', lineHeight: 1.7 }}>
-          Enter an MMSI number above<br/>to investigate a vessel
-        </div>
-      </div>
-    )
-  }
-
-  const isDark = investigatedVessel.status === 'dark'
-  const isSuspicious = investigatedVessel.status === 'suspicious'
-  const statusColor = STATUS_COLORS[investigatedVessel.status] || 'var(--text3)'
-
-  return (
-    <div style={styles.scrollArea}>
-      {isDark && (
-        <div style={{ ...styles.alertBanner, marginBottom: 6 }}>
-          DARK VESSEL — AIS SIGNAL LOST
-        </div>
-      )}
-      {isSuspicious && (
-        <div style={{ ...styles.alertBanner, borderColor: 'rgba(255,149,0,0.3)', color: 'var(--warning)', marginBottom: 6 }}>
-          SUSPICIOUS BEHAVIOUR DETECTED
-        </div>
-      )}
-
-      <div style={styles.card}>
-        <div style={styles.cardHeader}>
-          <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 2, color: statusColor }}>
-            {(investigatedVessel.status || 'UNKNOWN').toUpperCase()} VESSEL
-          </span>
-          {investigating && (
-            <span style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: 1.5, animation: 'pulse-dot 2s infinite' }}>
-              INVESTIGATING
-            </span>
-          )}
-        </div>
-
-        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text)', margin: '8px 0 12px', lineHeight: 1.3 }}>
-          {investigatedVessel.name || 'Unknown Vessel'}
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <MetaRow label="MMSI" value={investigatedVessel.mmsi} />
-          {investigatedVessel.notFound ? (
-            <>
-              <MetaRow label="AIS STATUS" value="NOT IN CURRENT FEED" color="var(--text3)" />
-              {gfwPath && (
-                <>
-                  <MetaRow
-                    label="1-YEAR PATH"
-                    value={gfwPath.error ? 'Not available' : `${gfwPath.metadata?.point_count || 0} points from GFW`}
-                    valueColor={gfwPath.error ? 'var(--text3)' : 'var(--accent)'}
-                  />
-                  {!gfwPath.error && gfwPath.metadata?.data_source === 'event_locations' && (
-                    <div style={{ fontSize: 8, color: 'var(--text3)', marginTop: 2, letterSpacing: 0.5 }}>
-                      Based on port/event locations; path smoothed
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              {investigatedVessel.lat != null && (
-                <MetaRow label="POSITION" value={`${investigatedVessel.lat.toFixed(3)}°N, ${investigatedVessel.lon.toFixed(3)}°E`} />
-              )}
-              {investigatedVessel.in_hotzone && (
-                <MetaRow label="HOTZONE" value={investigatedVessel.in_hotzone} color="var(--warning)" />
-              )}
-              {investigatedVessel.sog != null && (
-                <MetaRow label="SPEED" value={`${investigatedVessel.sog} kn`} />
-              )}
-              {investigatedVessel.cog != null && (
-                <MetaRow label="COURSE" value={`${investigatedVessel.cog}°`} />
-              )}
-              {investigatedVessel.type && (
-                <MetaRow label="TYPE" value={investigatedVessel.type.toUpperCase()} />
-              )}
-              {gfwPath && (
-                <>
-                  <MetaRow
-                    label="1-YEAR PATH"
-                    value={gfwPath.error ? 'Not available' : `${gfwPath.metadata?.point_count || 0} points from GFW`}
-                    valueColor={gfwPath.error ? 'var(--text3)' : 'var(--accent)'}
-                  />
-                  {!gfwPath.error && gfwPath.metadata?.data_source === 'event_locations' && (
-                    <div style={{ fontSize: 8, color: 'var(--text3)', marginTop: 2, letterSpacing: 0.5 }}>
-                      Based on port/event locations; path smoothed
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {investigating && (
-        <div style={{ ...styles.card, borderColor: 'rgba(0,229,255,0.18)', background: 'rgba(0,229,255,0.03)' }}>
-          <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: 1.5, marginBottom: 8 }}>PIPELINE ACTIVE</div>
-          <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.7 }}>
-            News · Sanctions · Geopolitical agents are gathering intelligence on this vessel in parallel.
-            Switch to the AGENTS tab to monitor progress.
-          </div>
-        </div>
       )}
     </div>
   )
@@ -319,15 +186,6 @@ function LogTab({ logs, onOpenReport, hasReport }) {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-function MetaRow({ label, value, color }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-      <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5 }}>{label}</span>
-      <span style={{ fontSize: 10, color: color || 'var(--text2)', letterSpacing: 0.3 }}>{value}</span>
     </div>
   )
 }

@@ -357,6 +357,7 @@ You have been given:
 1. A vessel MMSI and name
 2. An ML model probability score (0-1) predicting dark fleet risk
 3. Intelligence findings from three specialist agents: News, Sanctions, Geopolitical
+4. Local SQLite evidence for this MMSI from vessel identity records and unmatched historical detections
 
 Your role is to reach a definitive, evidence-based verdict on whether this vessel is a dark fleet participant — or a legitimate commercial vessel being incorrectly flagged.
 
@@ -484,12 +485,17 @@ def _pre_screen_signals(ml_score: dict, agent_findings: dict) -> dict:
     tier = ml_score.get("risk_tier", "MEDIUM")
     sanctions = agent_findings.get("sanctions", {})
     news = agent_findings.get("news", {})
+    local_data = agent_findings.get("local_data", {})
 
     exposure = sanctions.get("exposure_level", "POSSIBLE")
     sanctions_hits = sanctions.get("sanctions_hits", [])
     risk_indicators = news.get("risk_indicators", [])
     clean_news = news.get("clean_indicators", [])
     clean_sanctions = sanctions.get("clean_indicators", [])
+    unmatched_count = (
+        local_data.get("historical_unmatched", {}).get("point_count", 0)
+        if isinstance(local_data, dict) else 0
+    )
 
     signals = []
 
@@ -501,6 +507,11 @@ def _pre_screen_signals(ml_score: dict, agent_findings: dict) -> dict:
     # Hard stop — specific risk indicators in news = run full loop
     if risk_indicators:
         signals.extend(risk_indicators[:3])
+        return {"is_clearly_clean": False, "signals": signals}
+
+    # Non-trivial unmatched history should not be auto-cleared without full synthesis.
+    if unmatched_count >= 25:
+        signals.append(f"Historical unmatched points: {unmatched_count}")
         return {"is_clearly_clean": False, "signals": signals}
 
     # All three gates must pass for fast-clear:
@@ -529,6 +540,9 @@ def _fast_clear_report(vessel_info: dict, ml_score: dict, agent_findings: dict, 
     news = agent_findings.get("news", {})
     sanctions = agent_findings.get("sanctions", {})
     geo = agent_findings.get("geopolitical", {})
+    local_data = agent_findings.get("local_data", {})
+    unmatched = local_data.get("historical_unmatched", {}) if isinstance(local_data, dict) else {}
+    unmatched_count = unmatched.get("point_count", 0)
     now = __import__('datetime').datetime.utcnow().isoformat()
 
     return {
@@ -538,7 +552,10 @@ def _fast_clear_report(vessel_info: dict, ml_score: dict, agent_findings: dict, 
             f"ML model assigns LOW risk ({prob:.0%}), no sanctions designations confirmed, and no adverse news identified. "
             "This vessel does not meet the threshold for dark fleet classification."
         ),
-        "vessel_profile": f"MMSI: {mmsi}, Name: {vessel_name}, Region: {region}",
+        "vessel_profile": (
+            f"MMSI: {mmsi}, Name: {vessel_name}, Region: {region}. "
+            f"Local unmatched history points: {unmatched_count}."
+        ),
         "ml_risk_score": {
             "probability": prob,
             "risk_tier": tier,
@@ -561,7 +578,10 @@ def _fast_clear_report(vessel_info: dict, ml_score: dict, agent_findings: dict, 
             "All three fast-clear gates passed — full reporter/critic loop not required. "
             f"Clean signals: {'; '.join(signals)}."
         ),
-        "supporting_evidence": signals or ["ML score below fast-clear threshold (≤25%)", "No sanctions designations", "No adverse news"],
+        "supporting_evidence": (
+            signals or
+            ["ML score below fast-clear threshold (≤25%)", "No sanctions designations", "No adverse news"]
+        ) + [f"Local SQLite unmatched count: {unmatched_count}"],
         "risk_factors": ["Regional geopolitical context carries baseline risk independent of this vessel"],
         "recommended_actions": [
             "No immediate action required",
@@ -592,6 +612,7 @@ def _build_investigation_context(vessel_info: dict, ml_score: dict, agent_findin
     news = agent_findings.get("news", {})
     sanctions = agent_findings.get("sanctions", {})
     geo = agent_findings.get("geopolitical", {})
+    local_data = agent_findings.get("local_data", {})
 
     return f"""CLASSIFIED INVESTIGATION BRIEF — MMSI {mmsi}
 Generated: {__import__('datetime').datetime.utcnow().isoformat()}Z
@@ -615,6 +636,9 @@ Model Version: {ml_score.get('model_version', 'unknown')}
 
 === GEOPOLITICAL CONTEXT (Geopolitical Agent) ===
 {json.dumps(geo, indent=2)}
+
+=== LOCAL SQLITE MMSI CONTEXT (vessel_data.db + historical_unmatched.db) ===
+{json.dumps(local_data, indent=2)}
 
 Synthesise all evidence above into a comprehensive dark fleet risk assessment JSON report."""
 

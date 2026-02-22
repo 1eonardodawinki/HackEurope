@@ -21,6 +21,16 @@ from config import FAST_MODEL, ANTHROPIC_API_KEY
 
 client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
+
+def _local_context_text(local_data: dict | None) -> str:
+    if not local_data:
+        return "No local SQLite context available."
+    return (
+        "LOCAL SQLITE CONTEXT (project data):\n"
+        + json.dumps(local_data, indent=2)
+        + "\nUse this context as evidence where relevant."
+    )
+
 # ── Shared tool definition ─────────────────────────────────────────────────────
 
 NEWS_TOOL = {
@@ -166,7 +176,7 @@ def _print_agent_result(label: str, result: dict) -> None:
 
 # ── Individual agents ──────────────────────────────────────────────────────────
 
-async def run_news_agent(mmsi: str, vessel_name: str, region: str = "") -> dict:
+async def run_news_agent(mmsi: str, vessel_name: str, region: str = "", local_context: str = "") -> dict:
     """Search recent news about the vessel, its operator, and any reported anomalies."""
     system = f"""You are a maritime news intelligence analyst investigating a specific vessel.
 
@@ -193,6 +203,7 @@ IMPORTANT: Return ONLY valid JSON matching this schema:
         f"Investigate vessel: {vessel_name or 'Unknown'} | MMSI: {mmsi}"
         + (f" | Last known region: {region}" if region else "")
         + "\n\nSearch for news. Record both adverse findings AND clean/positive findings. Return your structured findings as JSON."
+        + ("\n\n" + local_context if local_context else "")
     )
 
     result = await _run_agent(system, user, "NewsAgent")
@@ -200,7 +211,12 @@ IMPORTANT: Return ONLY valid JSON matching this schema:
     return result
 
 
-async def run_sanctions_agent(mmsi: str, vessel_name: str, flag_state: str = "") -> dict:
+async def run_sanctions_agent(
+    mmsi: str,
+    vessel_name: str,
+    flag_state: str = "",
+    local_context: str = "",
+) -> dict:
     """Check sanctions exposure for the vessel, owner, and flag state."""
     system = f"""You are a sanctions compliance analyst at a maritime risk firm.
 
@@ -229,6 +245,7 @@ IMPORTANT: Return ONLY valid JSON matching this schema:
         f"Perform sanctions due diligence on: {vessel_name or 'Unknown'} | MMSI: {mmsi}"
         + (f" | Flag state: {flag_state}" if flag_state else "")
         + "\n\nSearch for sanctions exposure. Explicitly confirm absence of hits if none found. Return structured findings as JSON."
+        + ("\n\n" + local_context if local_context else "")
     )
 
     result = await _run_agent(system, user, "SanctionsAgent")
@@ -236,7 +253,7 @@ IMPORTANT: Return ONLY valid JSON matching this schema:
     return result
 
 
-async def run_geopolitical_agent(region: str, vessel_profile: str) -> dict:
+async def run_geopolitical_agent(region: str, vessel_profile: str, local_context: str = "") -> dict:
     """Assess the geopolitical risk context for the vessel's operating region."""
     system = """You are a geopolitical risk analyst specialising in maritime security.
 
@@ -261,6 +278,7 @@ IMPORTANT: Return ONLY valid JSON matching this schema:
     user = (
         f"Assess geopolitical risk for:\nVessel profile: {vessel_profile}\nOperating region: {region or 'unknown'}"
         "\n\nSearch for regional geopolitical risk and return structured findings as JSON."
+        + ("\n\n" + local_context if local_context else "")
     )
 
     result = await _run_agent(system, user, "GeopoliticalAgent")
@@ -280,6 +298,8 @@ async def run_parallel_investigation(vessel_info: dict, progress_callback=None) 
     vessel_name = vessel_info.get("vessel_name", "")
     flag_state = vessel_info.get("flag_state", "")
     region = vessel_info.get("region", "")
+    local_data = vessel_info.get("local_data", {})
+    local_context = _local_context_text(local_data)
 
     vessel_profile = (
         f"Vessel: {vessel_name or 'Unknown'} | MMSI: {mmsi}"
@@ -299,9 +319,11 @@ async def run_parallel_investigation(vessel_info: dict, progress_callback=None) 
             await progress_callback({"stage": stage, "message": msg})
 
     # Run all three in parallel
-    news_task = asyncio.create_task(run_news_agent(mmsi, vessel_name, region))
-    sanctions_task = asyncio.create_task(run_sanctions_agent(mmsi, vessel_name, flag_state))
-    geo_task = asyncio.create_task(run_geopolitical_agent(region, vessel_profile))
+    news_task = asyncio.create_task(run_news_agent(mmsi, vessel_name, region, local_context=local_context))
+    sanctions_task = asyncio.create_task(
+        run_sanctions_agent(mmsi, vessel_name, flag_state, local_context=local_context)
+    )
+    geo_task = asyncio.create_task(run_geopolitical_agent(region, vessel_profile, local_context=local_context))
 
     news_result, sanctions_result, geo_result = await asyncio.gather(
         news_task, sanctions_task, geo_task, return_exceptions=True
@@ -330,4 +352,5 @@ async def run_parallel_investigation(vessel_info: dict, progress_callback=None) 
         "news": news_result,
         "sanctions": sanctions_result,
         "geopolitical": geo_result,
+        "local_data": local_data,
     }
