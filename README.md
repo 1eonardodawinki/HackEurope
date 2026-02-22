@@ -118,7 +118,18 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-### 3. Frontend
+### 3. Track Service (vessel path — required for Track Ship button)
+
+```bash
+cd track-service
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+# Create track-service/.env with: GFW_API_TOKEN=<your token>
+uvicorn main:app --port 8001
+```
+
+### 4. Frontend
 
 ```bash
 cd frontend
