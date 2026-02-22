@@ -223,3 +223,7 @@ frontend/.env
 *.db
 *.db-shm
 *.db-wal
+
+# Local datasets
+Historical_Data/
+Vessel_Data/
