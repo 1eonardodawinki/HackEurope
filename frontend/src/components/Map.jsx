@@ -42,12 +42,13 @@ function buildHotzoneFeatures(hotzones, overrides) {
   })
 }
 
-export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, gfwPath, unmatchedPoints, mmsiInput, onTrackShip }) {
+export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, onDeleteZone, onAddZone, gfwPath, unmatchedPoints, mmsiInput, onTrackShip }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
   const shipsData = useRef({})
   const incidentMarkers = useRef({})
   const resizeMarkers = useRef({})
+  const deleteMarkers = useRef({})
   const isDraggingMarker = useRef(null)
 
   // Refs to avoid stale closures in Mapbox event handlers
@@ -55,15 +56,26 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
   const zoneOverridesRef = useRef(zoneOverrides)
   const onZoneChangeRef = useRef(onZoneChange)
   const hotzonesRef = useRef(hotzones)
+  const addingZoneRef = useRef(false)
+  const onAddZoneRef = useRef(onAddZone)
 
   useEffect(() => { editZonesRef.current = editZones }, [editZones])
   useEffect(() => { zoneOverridesRef.current = zoneOverrides }, [zoneOverrides])
   useEffect(() => { onZoneChangeRef.current = onZoneChange }, [onZoneChange])
   useEffect(() => { hotzonesRef.current = hotzones }, [hotzones])
+  useEffect(() => { onAddZoneRef.current = onAddZone }, [onAddZone])
 
   const [mapReady, setMapReady] = useState(false)
   const [noToken, setNoToken] = useState(false)
   const [typeFilter, setTypeFilter] = useState('all')
+  const [addingZone, setAddingZone] = useState(false)
+  useEffect(() => { addingZoneRef.current = addingZone }, [addingZone])
+
+  // ── Cursor when adding zone ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !map.current) return
+    map.current.getCanvas().style.cursor = addingZone ? 'crosshair' : ''
+  }, [addingZone, mapReady])
 
   // ── Init map ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -220,8 +232,14 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
           onSelectShip(shipsData.current[mmsi] || null)
         }
       })
-      map.current.on('mouseenter', 'ships', () => { map.current.getCanvas().style.cursor = 'pointer' })
-      map.current.on('mouseleave', 'ships', () => { map.current.getCanvas().style.cursor = '' })
+      map.current.on('mouseenter', 'ships', () => {
+        if (addingZoneRef.current) return
+        map.current.getCanvas().style.cursor = 'pointer'
+      })
+      map.current.on('mouseleave', 'ships', () => {
+        if (addingZoneRef.current) return
+        map.current.getCanvas().style.cursor = ''
+      })
 
       // ── Zone drag-to-move ──
       let dragging = null
@@ -251,10 +269,20 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       })
 
       map.current.on('mouseenter', 'hotzone-fill', () => {
+        if (addingZoneRef.current) return
         if (editZonesRef.current) map.current.getCanvas().style.cursor = 'move'
       })
       map.current.on('mouseleave', 'hotzone-fill', () => {
+        if (addingZoneRef.current) return
         if (!dragging) map.current.getCanvas().style.cursor = ''
+      })
+
+      // ── Click to place new zone ──
+      map.current.on('click', (e) => {
+        if (!addingZoneRef.current) return
+        onAddZoneRef.current?.({ centerLon: e.lngLat.lng, centerLat: e.lngLat.lat })
+        addingZoneRef.current = false
+        setAddingZone(false)
       })
 
       setMapReady(true)
@@ -271,8 +299,8 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     const features = buildHotzoneFeatures(hotzonesRef.current, zoneOverridesRef.current)
     if (features.length === 0) return
     map.current.addSource('hotzones', { type: 'geojson', data: { type: 'FeatureCollection', features } })
-    map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.05 } })
-    map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 0.8, 'line-opacity': 0.45, 'line-dasharray': [4, 3] } })
+    map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.08 } })
+    map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.7, 'line-dasharray': [4, 3] } })
   }
 
   // ── Update hotzone source when data or overrides change ───────────────────
@@ -283,31 +311,32 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       if (Object.keys(hotzones).length === 0) return
       const features = buildHotzoneFeatures(hotzones, zoneOverrides)
       map.current.addSource('hotzones', { type: 'geojson', data: { type: 'FeatureCollection', features } })
-      map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.05 } })
-      map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 0.8, 'line-opacity': 0.45, 'line-dasharray': [4, 3] } })
+      map.current.addLayer({ id: 'hotzone-fill', type: 'fill', source: 'hotzones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.08 } })
+      map.current.addLayer({ id: 'hotzone-border', type: 'line', source: 'hotzones', paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.7, 'line-dasharray': [4, 3] } })
     } else {
       src.setData({ type: 'FeatureCollection', features: buildHotzoneFeatures(hotzones, zoneOverrides) })
     }
   }, [mapReady, hotzones, zoneOverrides])
 
-  // ── Create / destroy resize handles when edit mode toggles ────────────────
+  // ── Create / destroy resize + delete handles when edit mode toggles ────────
   useEffect(() => {
     if (!mapReady) return
     Object.values(resizeMarkers.current).forEach(m => m.remove())
+    Object.values(deleteMarkers.current).forEach(m => m.remove())
     resizeMarkers.current = {}
+    deleteMarkers.current = {}
     if (!editZones) return
 
     Object.entries(hotzones).forEach(([name, hz]) => {
+      const geo = getZoneGeo(name, hz, zoneOverridesRef.current)
+
+      // Resize handle
       const el = document.createElement('div')
       el.style.cssText = 'width:10px;height:10px;background:white;border-radius:50%;cursor:ew-resize;border:1px solid rgba(0,0,0,0.4);box-shadow:0 0 0 1px rgba(255,255,255,0.3);'
-
-      const geo = getZoneGeo(name, hz, zoneOverridesRef.current)
       const edgeLon = geo.centerLon + geo.radius / Math.cos((geo.centerLat * Math.PI) / 180)
-
       const marker = new mapboxgl.Marker({ element: el, draggable: true })
         .setLngLat([edgeLon, geo.centerLat])
         .addTo(map.current)
-
       marker.on('dragstart', () => { isDraggingMarker.current = name })
       marker.on('drag', () => {
         const lngLat = marker.getLngLat()
@@ -316,21 +345,33 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         onZoneChangeRef.current(name, { ...cur, radius: newRadius })
       })
       marker.on('dragend', () => { isDraggingMarker.current = null })
-
       resizeMarkers.current[name] = marker
-    })
-  }, [editZones, mapReady, hotzones])
 
-  // ── Sync resize handle positions when overrides change ────────────────────
+      // Delete button
+      const delEl = document.createElement('div')
+      delEl.textContent = '✕'
+      delEl.style.cssText = 'width:18px;height:18px;background:#ff3355;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 0 0 1px rgba(255,255,255,0.2);user-select:none;'
+      delEl.onclick = () => onDeleteZone?.(name)
+      const delMarker = new mapboxgl.Marker({ element: delEl, anchor: 'center' })
+        .setLngLat([geo.centerLon, geo.centerLat])
+        .addTo(map.current)
+      deleteMarkers.current[name] = delMarker
+    })
+  }, [editZones, mapReady, hotzones, onDeleteZone])
+
+  // ── Sync resize + delete handle positions when overrides change ───────────
   useEffect(() => {
     if (!mapReady || !editZones) return
     Object.entries(hotzones).forEach(([name, hz]) => {
       if (isDraggingMarker.current === name) return
-      const marker = resizeMarkers.current[name]
-      if (!marker) return
       const geo = getZoneGeo(name, hz, zoneOverrides)
-      const edgeLon = geo.centerLon + geo.radius / Math.cos((geo.centerLat * Math.PI) / 180)
-      marker.setLngLat([edgeLon, geo.centerLat])
+      const resizeMarker = resizeMarkers.current[name]
+      if (resizeMarker) {
+        const edgeLon = geo.centerLon + geo.radius / Math.cos((geo.centerLat * Math.PI) / 180)
+        resizeMarker.setLngLat([edgeLon, geo.centerLat])
+      }
+      const delMarker = deleteMarkers.current[name]
+      if (delMarker) delMarker.setLngLat([geo.centerLon, geo.centerLat])
     })
   }, [zoneOverrides, editZones, mapReady, hotzones])
 
@@ -532,6 +573,10 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
           style={{
             ...styles.filterBtn,
             marginTop: 6,
+            background: mmsiInput?.trim() ? '#fff' : 'rgba(8,8,8,0.9)',
+            color: mmsiInput?.trim() ? '#000' : 'var(--text3)',
+            borderColor: mmsiInput?.trim() ? '#fff' : 'rgba(255,255,255,0.08)',
+            fontWeight: 600,
             opacity: mmsiInput?.trim() ? 1 : 0.5,
             cursor: mmsiInput?.trim() ? 'pointer' : 'not-allowed',
           }}
@@ -559,23 +604,37 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         </div>
       )}
 
-      {/* Edit mode hint */}
+      {/* Edit mode hint + add zone button */}
       {editZones && (
-        <div style={styles.editHint}>
-          DRAG ZONE TO MOVE &nbsp;·&nbsp; DRAG HANDLE TO RESIZE
+        <div style={{ ...styles.editHint, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span>DRAG TO MOVE &nbsp;·&nbsp; HANDLE TO RESIZE</span>
+          <button
+            onClick={() => {
+              const next = !addingZone
+              addingZoneRef.current = next
+              setAddingZone(next)
+              if (map.current) map.current.getCanvas().style.cursor = next ? 'crosshair' : ''
+            }}
+            style={{
+              background: addingZone ? '#fff' : 'transparent',
+              color: addingZone ? '#000' : 'var(--text3)',
+              border: '1px solid',
+              borderColor: addingZone ? '#fff' : 'rgba(255,255,255,0.3)',
+              fontSize: 9, letterSpacing: 2, fontFamily: 'inherit', fontWeight: 600,
+              padding: '3px 10px', cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            {addingZone ? 'CLICK MAP TO PLACE' : '+ ADD ZONE'}
+          </button>
         </div>
       )}
 
       {/* Legend */}
       <div style={styles.legend}>
-        <LegendItem color="var(--accent)" label="Active" />
-        <LegendItem color="var(--danger)" label="Suspicious" />
-        <LegendItem color="#444" label="Dark" />
-        <LegendItem color="var(--danger)" ring label="Went Dark" />
-        <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 8 }}>
-          <LegendItem color="var(--danger)" dashed label="Hormuz" />
-          <LegendItem color="var(--warning)" dashed label="Black Sea / Red Sea" />
-        </div>
+        <LegendItem arrow color="#fff" label="Live Position" />
+        <LegendItem line color="#4a9eff" label="Activity within last 12 months" />
+        <LegendItem ring color="var(--danger)" label="Historically went dark" />
+        <LegendItem dashed color="#ff6b00" label="High Risk Areas" />
       </div>
     </div>
   )
@@ -590,17 +649,30 @@ function Row({ label, value, valueColor }) {
   )
 }
 
-function LegendItem({ color, label, dashed, ring }) {
+function LegendItem({ color, label, ring, arrow, line, dashed }) {
+  let icon
+  if (arrow) {
+    icon = (
+      <svg width="10" height="10" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+        <polygon points="12,1 21,21 12,14.88 3,21" fill={color} transform="rotate(90, 12, 12)" />
+      </svg>
+    )
+  } else if (dashed) {
+    icon = <div style={{ width: 14, height: 1, borderTop: `2px dashed ${color}`, opacity: 0.85, flexShrink: 0 }} />
+  } else if (line) {
+    icon = <div style={{ width: 14, height: 2, background: color, borderRadius: 1 }} />
+  } else if (ring) {
+    icon = (
+      <div style={{ width: 10, height: 10, borderRadius: '50%', border: `1.5px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: color }} />
+      </div>
+    )
+  } else {
+    icon = <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+  }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-      {dashed
-        ? <div style={{ width: 14, height: 1, borderTop: `1px dashed ${color}`, opacity: 0.7 }} />
-        : ring
-          ? <div style={{ width: 10, height: 10, borderRadius: '50%', border: `1.5px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 3, height: 3, borderRadius: '50%', background: color }} />
-            </div>
-          : <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
-      }
+      {icon}
       <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 0.5 }}>{label}</span>
     </div>
   )
