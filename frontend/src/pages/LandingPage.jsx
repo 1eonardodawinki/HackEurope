@@ -26,7 +26,7 @@ const CAPABILITIES = [
   {
     n: '04',
     title: 'AI Underwriting Reports',
-    body: "Claude generates Lloyd's-grade underwriting assessments: risk score 0–100, premium loading recommendation, exclusion clauses, and peer benchmarking — in under 30 seconds.",
+    body: "Pelagos generates Lloyd's-grade underwriting assessments: risk score 0–100, premium loading recommendation, exclusion clauses, and peer benchmarking — in under 30 seconds.",
   },
 ]
 
@@ -235,7 +235,7 @@ export default function LandingPage({ onEnter }) {
       <section style={s.ctaSection}>
         <h2 style={s.ctaTitle}>Start underwriting<br />with confidence.</h2>
         <p style={s.ctaSub}>
-          Powered by Sentinel-1 satellite intelligence and Anthropic Claude.<br />
+          Powered by Sentinel-1 satellite intelligence and AI-driven analysis.<br />
           Search any vessel. Score the risk. Generate a Lloyd's-grade report.
         </p>
         <button style={s.btnPrimary} onClick={onEnter}>Launch Pelagos →</button>
@@ -245,7 +245,7 @@ export default function LandingPage({ onEnter }) {
       <footer style={s.footer}>
         <span style={s.logo}>PELAGOS</span>
         <span style={s.footerMeta}>
-          SAR Data: Global Fishing Watch · AI: Anthropic Claude · Mapping: Mapbox
+          SAR Data: Global Fishing Watch · AI: Pelagos Engine · Mapping: Mapbox
         </span>
       </footer>
 

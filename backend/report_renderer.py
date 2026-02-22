@@ -52,50 +52,15 @@ HEADER_H  = 1.85 * cm
 FOOTER_H  = 1.5  * cm
 
 
-# ── Logo drawing ───────────────────────────────────────────────────────────────
+# ── Logo (text wordmark, matching homepage) ───────────────────────────────────
 
 def _draw_pelagos_logo(c, x: float, y: float, height: float = 0.55 * cm) -> None:
-    """
-    Draw a simplified Pelagos logo directly on the canvas.
-    (x, y) = bottom-left corner.  height = total height of the logo.
-    """
-    r  = height / 2
-    cx = x + r
-    cy = y + r
-
-    # Teal filled sphere
-    c.setFillColor(C_TEAL)
-    c.circle(cx, cy, r, fill=1, stroke=0)
-
-    # White swoosh lines inside the sphere
-    c.setStrokeColor(colors.white)
-    c.setLineWidth(max(0.5, r * 0.18))
-    c.setLineCap(1)  # round caps
-
-    # Upper swoosh
-    p = c.beginPath()
-    p.moveTo(cx - r * 0.62, cy + r * 0.20)
-    p.curveTo(
-        cx - r * 0.18, cy + r * 0.55,
-        cx + r * 0.18, cy + r * 0.02,
-        cx + r * 0.62, cy + r * 0.28,
-    )
-    c.drawPath(p, stroke=1, fill=0)
-
-    # Lower swoosh
-    p = c.beginPath()
-    p.moveTo(cx - r * 0.62, cy - r * 0.25)
-    p.curveTo(
-        cx - r * 0.18, cy + r * 0.12,
-        cx + r * 0.18, cy - r * 0.42,
-        cx + r * 0.62, cy - r * 0.15,
-    )
-    c.drawPath(p, stroke=1, fill=0)
-
-    # "PELAGOS" wordmark
+    """Draw 'PELAGOS' as a text wordmark with letter-spacing, matching the homepage."""
     c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", height * 0.70)
-    c.drawString(cx + r + height * 0.25, cy - height * 0.25, "PELAGOS")
+    c.setFont("Helvetica-Bold", height * 0.75)
+    # Simulate letter-spacing by drawing each character individually
+    letters = "P E L A G O S"
+    c.drawString(x, y + height * 0.15, letters)
 
 
 # ── Globe watermark ────────────────────────────────────────────────────────────
@@ -104,7 +69,7 @@ def _draw_watermark(c, w: float, h: float) -> None:
     """Concentric circles + crosshairs at 5 % teal opacity."""
     cx = w * 0.74
     cy = h * 0.42
-    wm = colors.Color(0 / 255, 209 / 255, 193 / 255, 0.05)
+    wm = colors.Color(0 / 255, 209 / 255, 193 / 255, 0.03)
     c.setStrokeColor(wm)
     c.setLineWidth(0.4)
     for r in [h * 0.07, h * 0.13, h * 0.20, h * 0.28, h * 0.36]:
@@ -171,7 +136,7 @@ class _DarkPageTemplate:
             w / 2, fy,
             "Confidential \u2014 For Insurance & Compliance Use Only",
         )
-        canvas.drawRightString(w - MARGIN, fy, f"Page {doc.page} of 2")
+        canvas.drawRightString(w - MARGIN, fy, f"Page {doc.page}")
 
         canvas.restoreState()
 
@@ -179,13 +144,13 @@ class _DarkPageTemplate:
 # ── Risk Dial Flowable ─────────────────────────────────────────────────────────
 
 class RiskDial(Flowable):
-    """Circular gauge showing ML risk probability."""
+    """Circular gauge showing the overall prediction percentage."""
 
     def __init__(
         self,
         percentage: int,
         tier: str,
-        confidence,
+        sub_label: str,
         status: str,
         tier_color,
         size: float = 4.2 * cm,
@@ -193,7 +158,7 @@ class RiskDial(Flowable):
         Flowable.__init__(self)
         self.percentage  = percentage
         self.tier        = tier
-        self.confidence  = confidence
+        self.sub_label   = sub_label
         self.status      = status
         self.tier_color  = tier_color
         self.size        = size
@@ -244,11 +209,7 @@ class RiskDial(Flowable):
         # Labels below dial
         c.setFillColor(C_GRAY_META)
         c.setFont("Courier", 7)
-        conf_str = (
-            f"Confidence: {self.confidence}%"
-            if self.confidence is not None else "Confidence: \u2014"
-        )
-        c.drawCentredString(cx, 0.42 * cm, conf_str)
+        c.drawCentredString(cx, 0.42 * cm, self.sub_label)
         c.drawCentredString(cx, 0.18 * cm, f"Status: {self.status}")
 
 
@@ -392,6 +353,25 @@ def _action_tier(text: str, idx: int, ml_tier: str) -> tuple:
     return "MEDIUM", C_TEAL
 
 
+def _tier_from_pct(pct: int) -> str:
+    if pct > 70:
+        return "HIGH"
+    if pct > 45:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _sanitize_text(s: str) -> str:
+    if not s:
+        return ""
+    return (
+        str(s)
+        .replace("Claude API", "analysis engine")
+        .replace("Claude", "analysis model")
+        .replace("Anthropic", "provider")
+    )
+
+
 def _dark_tbl(extra: list | None = None) -> TableStyle:
     cmds = [
         ("BACKGROUND", (0, 0), (-1, -1), C_BG_PANEL),
@@ -421,20 +401,24 @@ def render_pdf(report: dict) -> bytes:
 
     title    = report.get("title", "Maritime Intelligence Assessment")
     cls_str  = report.get("classification", "INTELLIGENCE REPORT - RESTRICTED")
-    exec_sum = report.get("executive_summary", "")
-    threat   = report.get("threat_assessment", "")
-    cot      = report.get("chain_of_thought", "")
+    exec_sum = _sanitize_text(report.get("executive_summary", ""))
+    threat   = _sanitize_text(report.get("threat_assessment", ""))
+    cot      = _sanitize_text(report.get("chain_of_thought", ""))
 
-    evidence    = report.get("supporting_evidence", []) or []
-    risks       = report.get("risk_factors",        []) or []
-    actions     = report.get("recommended_actions", []) or []
+    evidence    = [_sanitize_text(x) for x in (report.get("supporting_evidence", []) or [])]
+    risks       = [_sanitize_text(x) for x in (report.get("risk_factors", []) or [])]
+    actions     = [_sanitize_text(x) for x in (report.get("recommended_actions", []) or [])]
     predictions = report.get("commodity_predictions",[]) or []
 
     ml_pct     = int((ml.get("probability", 0)) * 100)
     tier       = ml.get("risk_tier", "UNKNOWN")
     conf       = report.get("overall_confidence")
+    overall_pct = int(conf) if conf is not None else ml_pct
+    overall_pct = max(0, min(100, overall_pct))
+    overall_tier = _tier_from_pct(overall_pct)
     approved   = meta.get("final_approved", False)
     tier_clr   = TIER_COLOR.get(tier, C_GRAY_META)
+    overall_clr = TIER_COLOR.get(overall_tier, C_GRAY_META)
 
     conf_str   = f"{conf}%" if conf is not None else "\u2014"
     status_str = "APPROVED" if approved else "PROVISIONAL"
@@ -476,7 +460,14 @@ def render_pdf(report: dict) -> bytes:
             Paragraph("DARK FLEET RISK ASSESSMENT", styles["title"]),
             Paragraph(f"UNIDENTIFIED VESSEL \u2014 MMSI {mmsi_val}", styles["vessel"]),
         ]
-        dial = RiskDial(ml_pct, tier, conf, status_str, tier_clr, size=4.2 * cm)
+        dial = RiskDial(
+            overall_pct,
+            overall_tier,
+            f"ML Prediction: {ml_pct}% {tier}",
+            status_str,
+            overall_clr,
+            size=4.2 * cm,
+        )
         ttbl = Table(
             [[title_col, dial]],
             colWidths=[CONTENT_W - 4.8 * cm, 4.8 * cm],
@@ -501,9 +492,9 @@ def render_pdf(report: dict) -> bytes:
 
     if is_inv:
         mmsi_val = str(meta.get("mmsi", ml.get("mmsi", "\u2014")))
-        headers  = ["MMSI", "ML RISK SCORE", "CONFIDENCE", "STATUS"]
-        val_strs = [mmsi_val, f"{ml_pct}%  {tier}", conf_str, status_str]
-        val_clrs = [None, tier_clr, None, status_clr]
+        headers  = ["MMSI", "OVERALL PREDICTION", "ML PREDICTION", "STATUS"]
+        val_strs = [mmsi_val, f"{overall_pct}%  {overall_tier}", f"{ml_pct}%  {tier}", status_str]
+        val_clrs = [None, overall_clr, tier_clr, status_clr]
     else:
         region_val = str(meta.get("region", "\u2014"))
         inc_count  = str(int(meta.get("incident_count", 0)))
@@ -551,16 +542,17 @@ def render_pdf(report: dict) -> bytes:
         interp = ml.get("interpretation", "")
         if interp:
             story.append(Paragraph(
-                f'{_tag("ML Score:", C_GRAY_META)} {_tag(f"{ml_pct}% {tier}", tier_clr)}'
-                f' \u2014 <i>{interp}</i>',
+                f'{_tag("Overall Prediction:", C_GRAY_META)} {_tag(f"{overall_pct}% {overall_tier}", overall_clr)}'
+                f'  \u00b7  {_tag("ML Prediction:", C_GRAY_META)} {_tag(f"{ml_pct}% {tier}", tier_clr)}'
+                f' \u2014 <i>{_sanitize_text(interp)}</i>',
                 styles["body"],
             ))
 
     # ── Intelligence source cards (investigation only) ─────────────────────────
     if is_inv:
-        news_txt = report.get("news_intelligence",   "") or ""
-        sanc_txt = report.get("sanctions_assessment","") or ""
-        geo_txt  = report.get("geopolitical_context","") or ""
+        news_txt = _sanitize_text(report.get("news_intelligence", "") or "")
+        sanc_txt = _sanitize_text(report.get("sanctions_assessment", "") or "")
+        geo_txt  = _sanitize_text(report.get("geopolitical_context", "") or "")
 
         if news_txt or sanc_txt or geo_txt:
             story.extend(_section("Intelligence Sources", styles))
@@ -690,7 +682,7 @@ def render_pdf(report: dict) -> bytes:
     story.append(HRFlowable(width="100%", thickness=0.4, color=C_RULE, spaceAfter=4))
     story.append(Paragraph(
         f"Classification: {cls_str}  \u00b7  Critic rounds: {critic_rounds}  \u00b7  "
-        f"Quality: {quality}/100  \u00b7  Model: Claude Haiku 4.5  \u00b7  "
+        f"Quality: {quality}/100  \u00b7  "
         f"Platform: PELAGOS Intelligence",
         styles["footer"],
     ))
@@ -729,21 +721,25 @@ def render_latex(report: dict) -> str:
 
     title    = _esc(report.get('title', 'Maritime Intelligence Assessment'))
     cls_str  = _esc(report.get('classification', 'INTELLIGENCE REPORT - RESTRICTED'))
-    exec_sum = _esc(report.get('executive_summary', ''))
-    threat   = _esc(report.get('threat_assessment', ''))
-    cot      = _esc(report.get('chain_of_thought', ''))
+    exec_sum = _esc(_sanitize_text(report.get('executive_summary', '')))
+    threat   = _esc(_sanitize_text(report.get('threat_assessment', '')))
+    cot      = _esc(_sanitize_text(report.get('chain_of_thought', '')))
 
-    evidence    = report.get('supporting_evidence', [])
-    risks       = report.get('risk_factors', [])
-    actions     = report.get('recommended_actions', [])
+    evidence    = [_sanitize_text(x) for x in report.get('supporting_evidence', [])]
+    risks       = [_sanitize_text(x) for x in report.get('risk_factors', [])]
+    actions     = [_sanitize_text(x) for x in report.get('recommended_actions', [])]
     predictions = report.get('commodity_predictions', [])
 
     ml_pct = int((ml.get('probability', 0)) * 100)
     tier   = ml.get('risk_tier', 'UNKNOWN')
     conf   = report.get('overall_confidence')
+    overall_pct = int(conf) if conf is not None else ml_pct
+    overall_pct = max(0, min(100, overall_pct))
+    overall_tier = _tier_from_pct(overall_pct)
     approved = meta.get('final_approved', False)
 
     tier_color = {'HIGH': 'C-danger', 'MEDIUM': 'C-warn', 'LOW': 'C-green'}.get(tier, 'C-mid')
+    overall_color = {'HIGH': 'C-danger', 'MEDIUM': 'C-warn', 'LOW': 'C-green'}.get(overall_tier, 'C-mid')
 
     def _itemize(items):
         if not items:
@@ -822,11 +818,12 @@ def render_latex(report: dict) -> str:
         out.append(
             f"\\begin{{tabular}}{{@{{}}p{{0.22\\textwidth}}p{{0.22\\textwidth}}"
             f"p{{0.22\\textwidth}}p{{0.34\\textwidth}}@{{}}}}\n"
-            f"  {{\\small\\textbf{{MMSI}}}} & {{\\small\\textbf{{ML RISK}}}} & "
-            f"{{\\small\\textbf{{CONFIDENCE}}}} & {{\\small\\textbf{{STATUS}}}}\\\\\n"
+            f"  {{\\small\\textbf{{MMSI}}}} & {{\\small\\textbf{{OVERALL PREDICTION}}}} & "
+            f"{{\\small\\textbf{{ML PREDICTION}}}} & {{\\small\\textbf{{STATUS}}}}\\\\\n"
             f"  {{\\scriptsize {mmsi_str}}} & "
+            f"{{\\scriptsize\\textcolor{{{overall_color}}}{{{overall_pct}\\% {overall_tier}}}}} & "
             f"{{\\scriptsize\\textcolor{{{tier_color}}}{{{ml_pct}\\% {tier}}}}} & "
-            f"{{\\scriptsize {conf_str}}} & {{\\scriptsize {approved_latex}}}\\\\\n"
+            f"{{\\scriptsize {approved_latex}}}\\\\\n"
             f"\\end{{tabular}}\n"
         )
     else:
@@ -849,18 +846,20 @@ def render_latex(report: dict) -> str:
         out.append(f"\\textcolor{{C-mid}}{{{threat}}}\n\n")
 
     if is_inv:
-        interp = _esc(ml.get('interpretation', ''))
+        interp = _esc(_sanitize_text(ml.get('interpretation', '')))
         if interp:
             out.append(
-                f"\\noindent\\textcolor{{C-mid}}{{\\textbf{{ML Score:}}}}\\ "
+                f"\\noindent\\textcolor{{C-mid}}{{\\textbf{{Overall Prediction:}}}}\\ "
+                f"\\textcolor{{{overall_color}}}{{{overall_pct}\\% {overall_tier}}} "
+                f"\\textcolor{{C-mid}}{{\\textbf{{\\quad\\textbullet\\quad ML Prediction:}}}}\\ "
                 f"\\textcolor{{{tier_color}}}{{{ml_pct}\\% {tier}}}"
                 f" --- {{\\small\\textit{{{interp}}}}}\n\n"
             )
 
     if is_inv:
-        news_txt = _esc(report.get('news_intelligence', ''))
-        sanc_txt = _esc(report.get('sanctions_assessment', ''))
-        geo_txt  = _esc(report.get('geopolitical_context', ''))
+        news_txt = _esc(_sanitize_text(report.get('news_intelligence', '')))
+        sanc_txt = _esc(_sanitize_text(report.get('sanctions_assessment', '')))
+        geo_txt  = _esc(_sanitize_text(report.get('geopolitical_context', '')))
         if news_txt or sanc_txt or geo_txt:
             def _cell(t, limit=380):
                 return (t[:limit] + r'\ldots') if len(t) > limit else t
@@ -943,7 +942,6 @@ def render_latex(report: dict) -> str:
         f"Classification: {cls_str}\\quad\\textbullet\\quad "
         f"Critic rounds: {critic_rounds}\\quad\\textbullet\\quad "
         f"Quality: {quality}/100\\quad\\textbullet\\quad "
-        f"Model: Claude Haiku 4.5\\quad\\textbullet\\quad "
         f"Platform: BALAGAER Intelligence}}}}\n"
         f"\n\\end{{document}}\n"
     )

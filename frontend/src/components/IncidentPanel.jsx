@@ -56,7 +56,7 @@ function AgentsTab({ agentStatus }) {
   return (
     <div style={styles.scrollArea}>
       <div style={{ fontSize: 10, color: 'var(--text3)', letterSpacing: 0.5, marginBottom: 16, lineHeight: 1.6 }}>
-        Multi-agent pipeline — Claude Sonnet 4.6 / Haiku 4.5
+        Multi-agent intelligence pipeline
       </div>
 
       {stages.map(stage => {
@@ -105,8 +105,8 @@ function AgentsTab({ agentStatus }) {
         <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 2 }}>
           <span style={{ color: 'var(--accent)' }}>MMSI INVESTIGATION</span><br/>
           News · Sanctions · Geo agents run in parallel<br/>
-          → Reporter (Sonnet) synthesises findings<br/>
-          → Critic (Haiku) reviews — exits early if approved
+          → Reporter synthesises findings<br/>
+          → Critic reviews — exits early if approved
         </div>
       </div>
     </div>

@@ -137,16 +137,16 @@ def _serialise_content(content) -> list:
 
 
 def _fallback_report(incidents: list[dict], evaluations: list[dict], error_message: str = "") -> dict:
-    """Return a minimal valid report if the Claude API is unavailable."""
+    """Return a minimal valid report if the AI engine is unavailable."""
     region = incidents[0].get("region", "unknown") if incidents else "unknown"
     avg_conf = (
         sum(e.get("confidence_score", 0) for e in evaluations) / len(evaluations)
         if evaluations else 55
     )
     threat_note = (
-        f"Automated fallback — Claude API error: {error_message}"
+        f"Automated fallback — AI engine error: {error_message}"
         if error_message
-        else "Automated fallback — Claude API unavailable during report generation."
+        else "Automated fallback — AI engine unavailable during report generation."
     )
     return {
         "title": f"Maritime Incident Alert — {region}",
@@ -443,7 +443,7 @@ Respond in JSON:
 
 
 def _fallback_investigation_report(vessel_info: dict, ml_score: dict, error_message: str = "") -> dict:
-    """Return a minimal valid investigation report if the Claude API is unavailable."""
+    """Return a minimal valid investigation report if the AI engine is unavailable."""
     mmsi = vessel_info.get("mmsi", "unknown")
     vessel_name = vessel_info.get("vessel_name", "Unknown Vessel")
     prob = ml_score.get("probability", 0.5)
