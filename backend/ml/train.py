@@ -31,6 +31,17 @@ def precision_at_k(y_true: np.ndarray, y_scores: np.ndarray, k: int) -> float:
     return float(y_true[top_k_idx].sum() / k)
 
 
+def recall_at_k(y_true: np.ndarray, y_scores: np.ndarray, k: int) -> float:
+    """Of all actual positives, what fraction appear in the top-k?"""
+    n_pos = y_true.sum()
+    if n_pos == 0:
+        return 0.0
+    if k > len(y_scores):
+        k = len(y_scores)
+    top_k_idx = np.argsort(y_scores)[::-1][:k]
+    return float(y_true[top_k_idx].sum() / n_pos)
+
+
 def train(
     events_df: pd.DataFrame | None = None,
     n_splits: int = 5,
@@ -79,15 +90,24 @@ def train(
         model = PUBaggingClassifier(
             n_estimators=n_estimators,
             n_trees_per_bag=100,
-            max_depth=10,
+            max_depth=7,
+            min_samples_leaf=5,
             random_state=42 + fold_i,
         )
         model.fit(X_train, y_train)
 
         scores = model.predict_proba(X_test)[:, 1]
 
-        p_at_100 = precision_at_k(y_test, scores, k=min(100, len(y_test)))
-        p_at_500 = precision_at_k(y_test, scores, k=min(500, len(y_test)))
+        k100 = min(100, len(y_test))
+        k500 = min(500, len(y_test))
+        p_at_100 = precision_at_k(y_test, scores, k=k100)
+        p_at_500 = precision_at_k(y_test, scores, k=k500)
+        r_at_100 = recall_at_k(y_test, scores, k=k100)
+        r_at_500 = recall_at_k(y_test, scores, k=k500)
+
+        # Train-set score to detect overfitting
+        train_scores = model.predict_proba(X_train)[:, 1]
+        train_p100 = precision_at_k(y_train, train_scores, k=min(100, len(y_train)))
 
         fold_metrics.append({
             "fold": fold_i,
@@ -96,18 +116,38 @@ def train(
             "n_test_positive": int(n_test_pos),
             "precision_at_100": p_at_100,
             "precision_at_500": p_at_500,
+            "recall_at_100": r_at_100,
+            "recall_at_500": r_at_500,
+            "train_precision_at_100": train_p100,
         })
 
+        overfit_gap = train_p100 - p_at_100
         logger.info(
-            "  Fold %d: P@100=%.3f, P@500=%.3f (test: %d ships, %d positive)",
-            fold_i, p_at_100, p_at_500, len(test_idx), n_test_pos,
+            "  Fold %d: P@100=%.3f R@100=%.3f P@500=%.3f R@500=%.3f "
+            "(train P@100=%.3f, gap=%.3f) (test: %d ships, %d pos)",
+            fold_i, p_at_100, r_at_100, p_at_500, r_at_500,
+            train_p100, overfit_gap, len(test_idx), n_test_pos,
         )
 
     # Aggregate CV metrics
     if fold_metrics:
         mean_p100 = np.mean([m["precision_at_100"] for m in fold_metrics])
         mean_p500 = np.mean([m["precision_at_500"] for m in fold_metrics])
-        logger.info("CV Results: mean P@100=%.3f, mean P@500=%.3f", mean_p100, mean_p500)
+        mean_r100 = np.mean([m["recall_at_100"] for m in fold_metrics])
+        mean_r500 = np.mean([m["recall_at_500"] for m in fold_metrics])
+        mean_train_p100 = np.mean([m["train_precision_at_100"] for m in fold_metrics])
+        mean_gap = mean_train_p100 - mean_p100
+        logger.info(
+            "CV Results: P@100=%.3f R@100=%.3f P@500=%.3f R@500=%.3f "
+            "(train P@100=%.3f, overfit gap=%.3f)",
+            mean_p100, mean_r100, mean_p500, mean_r500, mean_train_p100, mean_gap,
+        )
+        if mean_gap > 0.3:
+            logger.warning(
+                "HIGH OVERFIT GAP (%.3f) — train P@100 much higher than test. "
+                "Consider reducing max_depth or increasing min_samples_leaf.",
+                mean_gap,
+            )
     else:
         mean_p100 = mean_p500 = 0.0
         logger.warning("No valid folds for evaluation")
@@ -117,7 +157,8 @@ def train(
     final_model = PUBaggingClassifier(
         n_estimators=n_estimators,
         n_trees_per_bag=100,
-        max_depth=10,
+        max_depth=7,
+        min_samples_leaf=5,
         random_state=42,
     )
     final_model.fit(X, y)

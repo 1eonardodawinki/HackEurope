@@ -45,12 +45,14 @@ class PUBaggingClassifier(BaseEstimator, ClassifierMixin):
         self,
         n_estimators: int = 50,
         n_trees_per_bag: int = 100,
-        max_depth: int | None = 10,
+        max_depth: int | None = 7,
+        min_samples_leaf: int = 5,
         random_state: int = 42,
     ):
         self.n_estimators = n_estimators
         self.n_trees_per_bag = n_trees_per_bag
         self.max_depth = max_depth
+        self.min_samples_leaf = min_samples_leaf
         self.random_state = random_state
         self.estimators_: list[RandomForestClassifier] = []
         self.feature_importances_array_: Optional[np.ndarray] = None
@@ -103,6 +105,7 @@ class PUBaggingClassifier(BaseEstimator, ClassifierMixin):
             rf = RandomForestClassifier(
                 n_estimators=self.n_trees_per_bag,
                 max_depth=self.max_depth,
+                min_samples_leaf=self.min_samples_leaf,
                 random_state=self.random_state + i,
                 n_jobs=-1,
                 class_weight="balanced",

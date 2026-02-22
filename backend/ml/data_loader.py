@@ -52,7 +52,9 @@ def load_events(path: str | Path | None = None) -> pd.DataFrame:
     Validates schema, parses timestamps, handles missing values.
     """
     if path is None:
-        path = DATA_DIR / "synthetic_events.csv"
+        # Prefer real data if available, fall back to synthetic
+        real_path = DATA_DIR / "real_events.csv"
+        path = real_path if real_path.exists() else DATA_DIR / "synthetic_events.csv"
     path = Path(path)
 
     if not path.exists():

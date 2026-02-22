@@ -8,6 +8,7 @@ from AIS turn-off/turn-on event data.
 from .predict import score_vessel, load_model
 from .feature_engineering import engineer_features
 from .data_loader import load_events, load_shadow_fleet_list
+from .gfw_score import score_vessel_from_gfw
 
 __all__ = [
     "score_vessel",
@@ -15,4 +16,5 @@ __all__ = [
     "engineer_features",
     "load_events",
     "load_shadow_fleet_list",
+    "score_vessel_from_gfw",
 ]
