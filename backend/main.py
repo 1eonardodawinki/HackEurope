@@ -52,6 +52,7 @@ detector: IncidentDetector | None = None
 monitor: AISMonitor | None = None
 _ais_task: asyncio.Task | None = None
 _current_demo_mode: bool = DEMO_MODE
+_investigation_task: asyncio.Task | None = None
 
 
 # ── Module-level AIS callbacks (so they can be reused on mode switch) ─────────
@@ -146,6 +147,7 @@ class InvestigationRequest(BaseModel):
 
 async def _run_investigation(mmsi: str, vessel_name: str, flag_state: str, region: str):
     """Background task: run the full investigation pipeline and broadcast results."""
+    global _investigation_task
     vessel_info = {"mmsi": mmsi, "vessel_name": vessel_name, "flag_state": flag_state, "region": region}
 
     async def progress(msg: dict):
@@ -177,6 +179,12 @@ async def _run_investigation(mmsi: str, vessel_name: str, flag_state: str, regio
         await manager.broadcast({"type": "report", "data": report})
         print(f"[Investigate] Report broadcast for MMSI {mmsi}")
 
+    except asyncio.CancelledError:
+        print(f"[Investigate] Task cancelled for MMSI {mmsi}")
+        await manager.broadcast({
+            "type": "agent_status",
+            "data": {"stage": "aborted", "message": f"Investigation aborted for MMSI {mmsi}"},
+        })
     except Exception:
         import traceback
         traceback.print_exc()
@@ -184,6 +192,18 @@ async def _run_investigation(mmsi: str, vessel_name: str, flag_state: str, regio
             "type": "agent_status",
             "data": {"stage": "error", "message": f"Investigation failed for MMSI {mmsi}"},
         })
+    finally:
+        _investigation_task = None
+
+
+@app.post("/investigate/abort")
+async def abort_investigation():
+    """Cancel the currently running investigation task, if any."""
+    global _investigation_task
+    if _investigation_task and not _investigation_task.done():
+        _investigation_task.cancel()
+        return {"status": "aborted"}
+    return {"status": "no_active_investigation"}
 
 
 @app.post("/investigate")
@@ -204,7 +224,11 @@ async def investigate(body: InvestigationRequest):
             "data": {"mmsi": mmsi, "vessel": vessel},
         })
 
-    asyncio.create_task(_run_investigation(mmsi, vessel_name, flag_state, region))
+    global _investigation_task
+    # Cancel any running investigation before starting a new one
+    if _investigation_task and not _investigation_task.done():
+        _investigation_task.cancel()
+    _investigation_task = asyncio.create_task(_run_investigation(mmsi, vessel_name, flag_state, region))
     return {"status": "started", "mmsi": mmsi}
 
 

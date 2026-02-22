@@ -351,65 +351,93 @@ Please revise your report addressing all critique points. Respond with improved 
 
 # ── Investigation report (MMSI-based dark fleet assessment) ───────────────────
 
-INVESTIGATION_REPORTER_SYSTEM = """You are a senior maritime intelligence analyst producing a dark fleet risk assessment for an institutional client (insurer, government agency, or financial institution).
+INVESTIGATION_REPORTER_SYSTEM = """You are a senior maritime intelligence analyst producing a vessel risk assessment for an institutional client (insurer, government agency, or financial institution).
 
 You have been given:
 1. A vessel MMSI and name
 2. An ML model probability score (0-1) predicting dark fleet risk
 3. Intelligence findings from three specialist agents: News, Sanctions, Geopolitical
 
-Your role is to synthesise all evidence into a rigorous, well-evidenced case report that:
-1. Contextualises the ML score with real-world intelligence
-2. Assesses sanctions exposure and its implications
-3. Evaluates geopolitical risk factors
-4. Provides a clear threat assessment and recommended actions
+Your role is to reach a definitive, evidence-based verdict on whether this vessel is a dark fleet participant — or a legitimate commercial vessel being incorrectly flagged.
 
-Be specific. Cite evidence. Justify every claim. Write for professionals who will act on this report.
+CRITICAL PRINCIPLE — COMPETING HYPOTHESES:
+Always evaluate BOTH explanations simultaneously:
+  H1 (Dark Fleet): The vessel is engaged in sanctions evasion, AIS manipulation, or illegal transfers.
+  H2 (Legitimate): The vessel is a normal commercial ship that happens to be in a risk region or match a statistical profile.
+
+The default assumption is H2 (legitimate) unless specific, named evidence supports H1.
+
+WHAT CONSTITUTES REAL EVIDENCE FOR H1:
+- Named sanctions designations (OFAC/EU/UN) on the vessel, owner, or operator
+- Documented AIS manipulation with corroborating satellite imagery
+- Confirmed ship-to-ship transfers to/from sanctioned vessels
+- Investigative journalism citing this specific vessel
+
+WHAT DOES NOT CONSTITUTE EVIDENCE:
+- Operating in a risk region (this describes thousands of legitimate vessels)
+- High ML probability score alone (scores reflect statistical patterns, not confirmed activity)
+- Vague news about regional dark fleet activity not naming this vessel
+- Absence of information about the vessel
+
+Assign risk_verdict honestly:
+- "CLEARED": ML LOW + no sanctions hits + no named news = no basis for dark fleet classification
+- "LOW_RISK": Some statistical flags but no corroborating intelligence
+- "INCONCLUSIVE": Mixed signals — real ambiguity exists
+- "ELEVATED": Multiple soft indicators or one hard indicator
+- "HIGH_RISK": Specific named evidence of dark fleet activity
+
+Be specific. Cite evidence by name. Justify every claim. Write for professionals who will act on this report.
+If you find no real evidence of dark fleet activity, say so clearly — a clean verdict protects legitimate operators and builds client trust.
 
 IMPORTANT: Keep each field concise (2-4 sentences max per string field) to ensure the full JSON fits within the response limit. Do not pad or repeat information across fields.
 
 IMPORTANT: Your final report MUST be valid JSON matching this schema. Output ONLY the JSON object — no markdown fences, no preamble:
 {
-  "title": "string - e.g. 'Dark Fleet Risk Assessment: VESSEL_NAME (MMSI XXXXXXXXX)'",
+  "title": "string - e.g. 'Vessel Risk Assessment: VESSEL_NAME (MMSI XXXXXXXXX)'",
   "executive_summary": "string - 2-3 sentence summary with overall risk verdict",
   "vessel_profile": "string - what is known about this vessel",
   "ml_risk_score": {
     "probability": number (0-1),
     "risk_tier": "HIGH" | "MEDIUM" | "LOW",
-    "interpretation": "string - what this score means in context of other evidence"
+    "interpretation": "string - what this score means in context of other evidence, and whether it is corroborated or contradicted"
   },
-  "news_intelligence": "string - synthesis of news findings",
-  "sanctions_assessment": "string - detailed sanctions risk analysis",
-  "geopolitical_context": "string - regional threat context",
-  "threat_assessment": "string - overall assessment of dark fleet activity likelihood and type",
-  "chain_of_thought": "string - your full reasoning process",
+  "news_intelligence": "string - synthesis of news findings, explicitly stating if no adverse news was found",
+  "sanctions_assessment": "string - detailed sanctions risk analysis, explicitly confirming NONE if no hits found",
+  "geopolitical_context": "string - regional threat context, distinguishing regional risk from vessel-specific risk",
+  "threat_assessment": "string - clear verdict on H1 vs H2, with the key evidence driving your conclusion",
+  "chain_of_thought": "string - your full reasoning process including both hypotheses",
   "supporting_evidence": ["string", ...],
   "risk_factors": ["string", ...],
   "recommended_actions": ["string", ...],
+  "risk_verdict": "CLEARED" | "LOW_RISK" | "INCONCLUSIVE" | "ELEVATED" | "HIGH_RISK",
   "overall_confidence": number (0-100),
   "classification": "INTELLIGENCE REPORT - RESTRICTED"
 }"""
 
-INVESTIGATION_CRITIC_SYSTEM = """You are an adversarial quality control analyst reviewing a dark fleet risk assessment before it is delivered to an institutional client.
+INVESTIGATION_CRITIC_SYSTEM = """You are an adversarial quality control analyst reviewing a vessel risk assessment before it is delivered to an institutional client.
 
-Your role is to:
-1. Challenge whether the ML probability score is properly contextualised (not over- or under-weighted)
-2. Verify that sanctions claims are specific and supported by evidence — vague claims are dangerous
-3. Assess whether recommended actions are proportionate to the evidence
-4. Identify logical gaps or unsupported conclusions
-5. Check that the vessel profile is based on facts, not assumptions
+Your role is to check for errors in BOTH directions — over-flagging legitimate vessels is as harmful as under-flagging dark fleet participants.
 
-Be rigorous and adversarial, but constructive.
+Specifically challenge:
+1. OVER-FLAGGING: Does the report assert dark fleet activity without specific named evidence? Using a risk region, a statistical ML score, or vague regional news to conclude "high risk" is unacceptable and exposes the firm to reputational and legal liability.
+2. UNDER-FLAGGING: Are specific, named sanctions hits or documented AIS manipulation being downplayed or ignored?
+3. ML score weight: Is the score properly contextualised — corroborated by intel, or contradicted by clean findings?
+4. Sanctions specificity: Are sanctions claims named and sourced, or vague and inferred?
+5. Verdict-evidence alignment: Does the risk_verdict match the actual weight of evidence? A "CLEARED" verdict requires explicitly stating what was searched and not found.
+6. Recommended actions: Are they proportionate? Recommending "decline financing" for a vessel with no evidence is harmful.
+
+Approve only when: the verdict is clearly supported by evidence, both hypotheses were genuinely considered, and the recommended actions are proportionate.
 
 Respond in JSON:
 {
   "approved": boolean,
   "overall_quality": number (0-100),
-  "critique": "string - specific, detailed critique",
+  "critique": "string - specific, detailed critique calling out both over- and under-flagging",
+  "over_flagging_issues": ["string", ...],
   "missing_evidence": ["string", ...],
   "weak_claims": ["string", ...],
   "suggestions": ["string", ...],
-  "approval_reason": "string - if approved, explain why it meets standards"
+  "approval_reason": "string - if approved, explain why the verdict is well-supported"
 }"""
 
 
@@ -420,10 +448,10 @@ def _fallback_investigation_report(vessel_info: dict, ml_score: dict, error_mess
     prob = ml_score.get("probability", 0.5)
     tier = ml_score.get("risk_tier", "MEDIUM")
     return {
-        "title": f"Dark Fleet Risk Assessment: {vessel_name} (MMSI {mmsi})",
+        "title": f"Vessel Risk Assessment: {vessel_name} (MMSI {mmsi})",
         "executive_summary": (
             f"ML model assigns {tier} risk (probability {prob:.0%}) to vessel {vessel_name} (MMSI {mmsi}). "
-            "Automated fallback report — full agent analysis unavailable. Manual review required."
+            "Automated fallback report — full agent analysis unavailable. Manual review required before acting on this assessment."
         ),
         "vessel_profile": f"MMSI: {mmsi}, Name: {vessel_name}",
         "ml_risk_score": {
@@ -431,16 +459,126 @@ def _fallback_investigation_report(vessel_info: dict, ml_score: dict, error_mess
             "risk_tier": tier,
             "interpretation": "ML score only — agent intelligence gathering failed. Do not use in isolation.",
         },
-        "news_intelligence": "News agent output unavailable.",
-        "sanctions_assessment": "Sanctions agent output unavailable.",
+        "news_intelligence": "News agent output unavailable — no adverse or clean findings recorded.",
+        "sanctions_assessment": "Sanctions agent output unavailable — no confirmation of presence or absence of designations.",
         "geopolitical_context": "Geopolitical agent output unavailable.",
-        "threat_assessment": f"Automated fallback — Claude API error: {error_message}" if error_message else "Automated fallback.",
-        "chain_of_thought": "Report generated by fallback system.",
+        "threat_assessment": f"Automated fallback — API error: {error_message}. No verdict can be issued." if error_message else "Automated fallback — API unavailable. No verdict can be issued.",
+        "chain_of_thought": "Report generated by fallback system. Full pipeline did not run.",
         "supporting_evidence": [f"ML probability: {prob:.0%} ({tier} risk tier)"],
-        "risk_factors": ["Full agent analysis failed — confidence scores are estimates only"],
-        "recommended_actions": ["Conduct manual investigation", "Do not rely on this automated report alone"],
-        "overall_confidence": 30,
+        "risk_factors": ["Full agent analysis failed — no verdict should be acted upon without manual review"],
+        "recommended_actions": ["Do not act on this automated fallback report", "Conduct manual sanctions and news review", "Re-run investigation when API is available"],
+        "risk_verdict": "INCONCLUSIVE",
+        "overall_confidence": 20,
         "classification": "INTELLIGENCE REPORT - RESTRICTED",
+    }
+
+
+def _pre_screen_signals(ml_score: dict, agent_findings: dict) -> dict:
+    """
+    Derive a lightweight pre-screen from ML score + agent findings before
+    running the full reporter/critic loop. Returns a dict with:
+      - is_clearly_clean: bool — skip reporter loop and issue a CLEARED report directly
+      - signals: list[str] — human-readable list of what was found
+    """
+    prob = ml_score.get("probability", 0.5)
+    tier = ml_score.get("risk_tier", "MEDIUM")
+    sanctions = agent_findings.get("sanctions", {})
+    news = agent_findings.get("news", {})
+
+    exposure = sanctions.get("exposure_level", "POSSIBLE")
+    sanctions_hits = sanctions.get("sanctions_hits", [])
+    risk_indicators = news.get("risk_indicators", [])
+    clean_news = news.get("clean_indicators", [])
+    clean_sanctions = sanctions.get("clean_indicators", [])
+
+    signals = []
+
+    # Hard stop — confirmed sanctions = always run full loop
+    if exposure in ("CONFIRMED", "SUSPECTED") or sanctions_hits:
+        signals.append(f"Sanctions exposure: {exposure}")
+        return {"is_clearly_clean": False, "signals": signals}
+
+    # Hard stop — specific risk indicators in news = run full loop
+    if risk_indicators:
+        signals.extend(risk_indicators[:3])
+        return {"is_clearly_clean": False, "signals": signals}
+
+    # All three gates must pass for fast-clear:
+    # 1. Low ML score
+    # 2. No sanctions hits
+    # 3. No news risk indicators
+    if prob <= 0.25 and tier == "LOW" and exposure == "NONE" and not risk_indicators:
+        signals.append(f"ML score LOW ({prob:.0%})")
+        signals.append(f"Sanctions: NONE confirmed")
+        if clean_news:
+            signals.extend(clean_news[:2])
+        if clean_sanctions:
+            signals.extend(clean_sanctions[:2])
+        return {"is_clearly_clean": True, "signals": signals}
+
+    return {"is_clearly_clean": False, "signals": signals}
+
+
+def _fast_clear_report(vessel_info: dict, ml_score: dict, agent_findings: dict, signals: list) -> dict:
+    """Generate a CLEARED report without running the full reporter/critic loop."""
+    mmsi = vessel_info.get("mmsi", "unknown")
+    vessel_name = vessel_info.get("vessel_name", "Unknown Vessel")
+    region = vessel_info.get("region", "unknown")
+    prob = ml_score.get("probability", 0.5)
+    tier = ml_score.get("risk_tier", "LOW")
+    news = agent_findings.get("news", {})
+    sanctions = agent_findings.get("sanctions", {})
+    geo = agent_findings.get("geopolitical", {})
+    now = __import__('datetime').datetime.utcnow().isoformat()
+
+    return {
+        "title": f"Vessel Risk Assessment: {vessel_name} (MMSI {mmsi})",
+        "executive_summary": (
+            f"No evidence of dark fleet activity found for {vessel_name} (MMSI {mmsi}). "
+            f"ML model assigns LOW risk ({prob:.0%}), no sanctions designations confirmed, and no adverse news identified. "
+            "This vessel does not meet the threshold for dark fleet classification."
+        ),
+        "vessel_profile": f"MMSI: {mmsi}, Name: {vessel_name}, Region: {region}",
+        "ml_risk_score": {
+            "probability": prob,
+            "risk_tier": tier,
+            "interpretation": (
+                f"LOW statistical risk ({prob:.0%}), consistent with legitimate commercial operation. "
+                "No corroborating intelligence found to elevate this score."
+            ),
+        },
+        "news_intelligence": news.get("summary", "No adverse news found for this vessel."),
+        "sanctions_assessment": sanctions.get("summary", "No sanctions designations found (OFAC, EU, UN, UK)."),
+        "geopolitical_context": geo.get("summary", "Regional context assessed; no vessel-specific risk identified."),
+        "threat_assessment": (
+            "H2 (Legitimate commercial vessel) is the supported hypothesis. "
+            "H1 (Dark fleet participant) is not supported — no specific named evidence found across news, sanctions, or ML signal. "
+            "The ML score reflects a statistical pattern, not confirmed activity."
+        ),
+        "chain_of_thought": (
+            f"Pre-screening completed at {now}Z. ML probability {prob:.0%} (LOW tier). "
+            "Sanctions agent returned NONE. News agent found no risk indicators. "
+            "All three fast-clear gates passed — full reporter/critic loop not required. "
+            f"Clean signals: {'; '.join(signals)}."
+        ),
+        "supporting_evidence": signals or ["ML score below fast-clear threshold (≤25%)", "No sanctions designations", "No adverse news"],
+        "risk_factors": ["Regional geopolitical context carries baseline risk independent of this vessel"],
+        "recommended_actions": [
+            "No immediate action required",
+            "Continue standard AIS monitoring",
+            "Re-assess if new sanctions designations or AIS anomalies emerge",
+        ],
+        "risk_verdict": "CLEARED",
+        "overall_confidence": 80,
+        "classification": "INTELLIGENCE REPORT - RESTRICTED",
+        "_meta": {
+            "type": "investigation",
+            "mmsi": mmsi,
+            "fast_cleared": True,
+            "critic_rounds": 0,
+            "final_approved": True,
+            "critic_quality_score": 80,
+        },
     }
 
 
@@ -493,6 +631,18 @@ async def generate_investigation_report(
     """
     mmsi = vessel_info.get("mmsi", "unknown")
     print(f"[InvReporter] Starting investigation report for MMSI {mmsi}")
+
+    # ── Fast-clear pre-screen ────────────────────────────────────────────────
+    pre = _pre_screen_signals(ml_score, agent_findings)
+    if pre["is_clearly_clean"]:
+        print(f"[InvReporter] Fast-clear path triggered for MMSI {mmsi} — signals: {pre['signals']}")
+        if progress_callback:
+            await progress_callback({
+                "stage": "reporter",
+                "round": 1,
+                "message": "Pre-screen passed: no adverse signals — issuing CLEARED verdict directly.",
+            })
+        return _fast_clear_report(vessel_info, ml_score, agent_findings, pre["signals"])
 
     context = _build_investigation_context(vessel_info, ml_score, agent_findings)
     reporter_messages = [{"role": "user", "content": context}]
