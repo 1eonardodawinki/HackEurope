@@ -176,19 +176,23 @@ Search for recent news about vessel {vessel_name or 'Unknown'} (MMSI {mmsi}), in
 - Reported AIS gaps, dark periods, or suspicious behaviour
 - Port call irregularities or detentions
 - Flag state issues
+- Signs of legitimate, routine commercial operation (regular routes, reputable operator, clean port history)
+
+IMPORTANT: Explicitly record both adverse findings AND clean/positive findings. If no adverse news is found, that is itself a significant finding — record it clearly.
 
 IMPORTANT: Return ONLY valid JSON matching this schema:
 {{
-  "summary": "string — 2-3 sentence overview of findings",
+  "summary": "string — 2-3 sentence overview of findings, explicitly stating whether adverse news was found",
   "key_findings": ["string", ...],
   "sources": ["string", ...],
-  "risk_indicators": ["string", ...]
+  "risk_indicators": ["string", ...],
+  "clean_indicators": ["string — evidence of legitimate operation, e.g. 'No adverse news found', 'Regular port calls reported', 'Reputable operator'", ...]
 }}"""
 
     user = (
         f"Investigate vessel: {vessel_name or 'Unknown'} | MMSI: {mmsi}"
         + (f" | Last known region: {region}" if region else "")
-        + "\n\nSearch for news and return your structured findings as JSON."
+        + "\n\nSearch for news. Record both adverse findings AND clean/positive findings. Return your structured findings as JSON."
     )
 
     result = await _run_agent(system, user, "NewsAgent")
@@ -209,19 +213,22 @@ Search for:
 - Previous sanctions evasion methods (AIS manipulation, ship-to-ship transfers, port deception)
 - Any related entities on watchlists
 
+IMPORTANT: A confirmed absence of sanctions hits is a valuable finding. If you find no designations, state this explicitly — do NOT infer risk from the flag state or region alone.
+
 IMPORTANT: Return ONLY valid JSON matching this schema:
 {{
-  "summary": "string — sanctions risk overview",
-  "sanctions_hits": ["string", ...],
+  "summary": "string — sanctions risk overview, explicitly confirming 'No sanctions designations found' if applicable",
+  "sanctions_hits": ["string — name each specific designation found, or empty list if none"],
   "exposure_level": "CONFIRMED" | "SUSPECTED" | "POSSIBLE" | "NONE",
   "related_entities": ["string", ...],
+  "clean_indicators": ["string — e.g. 'No OFAC designation found', 'Flag state not on HM Treasury watchlist'", ...],
   "recommended_actions": ["string", ...]
 }}"""
 
     user = (
         f"Perform sanctions due diligence on: {vessel_name or 'Unknown'} | MMSI: {mmsi}"
         + (f" | Flag state: {flag_state}" if flag_state else "")
-        + "\n\nSearch for sanctions exposure and return structured findings as JSON."
+        + "\n\nSearch for sanctions exposure. Explicitly confirm absence of hits if none found. Return structured findings as JSON."
     )
 
     result = await _run_agent(system, user, "SanctionsAgent")

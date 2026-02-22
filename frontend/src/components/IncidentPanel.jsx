@@ -9,7 +9,7 @@ const STATUS_COLORS = {
 const TAB_LABELS = { vessel: 'VESSEL', agents: 'AGENTS', log: 'LOG' }
 
 export default function IncidentPanel({
-  investigatedVessel, investigating, agentStatus, logs, onOpenReport, hasReport
+  investigatedVessel, investigating, agentStatus, logs, onOpenReport, hasReport, onAbort
 }) {
   const [activeTab, setActiveTab] = useState('vessel')
 
@@ -42,7 +42,12 @@ export default function IncidentPanel({
       {activeTab === 'agents' && <AgentsTab agentStatus={agentStatus} />}
       {activeTab === 'log'    && <LogTab logs={logs || []} onOpenReport={onOpenReport} hasReport={hasReport} />}
 
-      {hasReport && (
+      {investigating && (
+        <button style={styles.abortBtn} onClick={onAbort}>
+          ABORT INVESTIGATION
+        </button>
+      )}
+      {hasReport && !investigating && (
         <button style={styles.reportCta} onClick={onOpenReport}>
           VIEW INTELLIGENCE REPORT
         </button>
@@ -351,5 +356,12 @@ const styles = {
     color: 'var(--text)', fontSize: 9, fontWeight: 700,
     cursor: 'pointer', letterSpacing: 3, fontFamily: 'inherit',
     flexShrink: 0, animation: 'blink 3s infinite',
+  },
+  abortBtn: {
+    padding: '12px', background: 'transparent',
+    border: 'none', borderTop: '1px solid rgba(255,51,85,0.2)',
+    color: 'var(--danger)', fontSize: 9, fontWeight: 600,
+    cursor: 'pointer', letterSpacing: 3, fontFamily: 'inherit',
+    flexShrink: 0, transition: 'background 0.15s',
   },
 }

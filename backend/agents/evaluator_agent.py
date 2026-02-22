@@ -24,7 +24,10 @@ You will receive an alert about a potential maritime security incident. Your job
 2. Evaluate whether this is a genuine incident (AIS spoofing, illegal ship-to-ship transfer, piracy, sanctions evasion)
 3. Assess the likely impact on commodity markets
 
-Be rigorous but decisive. Use specific evidence from your tool results."""
+Be rigorous but decisive. Use specific evidence from your tool results.
+
+IMPORTANT: Your final response MUST end with a single JSON object and nothing after it. No text after the closing brace. Use this exact schema:
+{ "confidence_score": 0-100, "incident_type": "...", "severity": "low|medium|high", "commodities_affected": [...], "reasoning": "...", "evidence": [...], "recommended_watch": true/false }"""
 
 TOOLS = [
     {
@@ -153,24 +156,24 @@ Please:
         print(f"[Evaluator] Agentic loop failed for incident {incident.get('id','?')}:")
         traceback.print_exc()
         return {
-            "confidence_score": 55,
-            "incident_type": "possible_sanctions_evasion",
-            "severity": "medium",
+            "confidence_score": 40,
+            "incident_type": "unclassified",
+            "severity": "unknown",
             "commodities_affected": region_commodities[:2],
-            "reasoning": "Evaluator API call failed — using automated baseline assessment.",
-            "evidence": ["AIS dropout detected", "Region historically linked to dark activity"],
+            "reasoning": "Evaluator API call failed — incident type unclassified. Do not infer dark fleet activity from this fallback.",
+            "evidence": ["AIS event detected — type unconfirmed due to API error"],
             "recommended_watch": True,
         }
 
     if response is None:
         return {
-            "confidence_score": 55,
-            "incident_type": "unknown",
-            "severity": "medium",
+            "confidence_score": 30,
+            "incident_type": "unclassified",
+            "severity": "unknown",
             "commodities_affected": region_commodities[:2],
-            "reasoning": "No response received from evaluator.",
+            "reasoning": "No evaluator response received — incident unclassified.",
             "evidence": [],
-            "recommended_watch": True,
+            "recommended_watch": False,
         }
 
     # Extract text response
@@ -187,13 +190,13 @@ Please:
     except Exception:
         pass
 
-    # Fallback: generate a structured response based on text
+    # Fallback: wrap raw text without asserting a specific incident type
     return {
-        "confidence_score": 65,
-        "incident_type": "possible_sanctions_evasion",
-        "severity": "medium",
+        "confidence_score": 50,
+        "incident_type": "unclassified",
+        "severity": "unknown",
         "commodities_affected": region_commodities[:2],
-        "reasoning": final_text[:500],
-        "evidence": ["AIS dropout detected", "Region historically linked to dark activity"],
+        "reasoning": final_text[:500] or "Evaluator response unparseable.",
+        "evidence": ["AIS event detected — structured classification unavailable"],
         "recommended_watch": True,
     }
