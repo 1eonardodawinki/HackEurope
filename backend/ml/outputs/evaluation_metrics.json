@@ -1,0 +1,87 @@
+{
+  "precision_at_100": 1.0,
+  "precision_at_500": 1.0,
+  "precision_at_1000": 1.0,
+  "total_ships": 9299,
+  "confirmed_positive": 1300,
+  "unlabeled": 7999,
+  "risk_tier_distribution": {
+    "HIGH": 1300,
+    "MEDIUM": 1,
+    "LOW": 7998
+  },
+  "score_stats": {
+    "mean": 0.14375509194537048,
+    "std": 0.34503972449776305,
+    "min": 0.0,
+    "max": 1.0,
+    "median": 0.0
+  },
+  "model_version": "shadow-fleet-v1.0-20260222_030204",
+  "feature_importance_ranking": [
+    {
+      "feature": "max_dark_duration_hours",
+      "importance": 0.2631
+    },
+    {
+      "feature": "avg_nearest_ais_km",
+      "importance": 0.1966
+    },
+    {
+      "feature": "total_dark_duration_hours",
+      "importance": 0.1725
+    },
+    {
+      "feature": "avg_dark_duration_hours",
+      "importance": 0.1426
+    },
+    {
+      "feature": "pct_far_from_tracking",
+      "importance": 0.0928
+    },
+    {
+      "feature": "avg_speed_at_turnoff",
+      "importance": 0.0567
+    },
+    {
+      "feature": "pct_unmatched",
+      "importance": 0.0299
+    },
+    {
+      "feature": "min_speed_at_turnoff",
+      "importance": 0.02
+    },
+    {
+      "feature": "pct_in_russian_waters",
+      "importance": 0.0103
+    },
+    {
+      "feature": "count_turnoffs",
+      "importance": 0.0061
+    },
+    {
+      "feature": "pct_low_speed",
+      "importance": 0.0054
+    },
+    {
+      "feature": "pct_near_sts_zone",
+      "importance": 0.0013
+    },
+    {
+      "feature": "pct_likely_sts",
+      "importance": 0.0012
+    },
+    {
+      "feature": "is_tanker",
+      "importance": 0.0009
+    },
+    {
+      "feature": "is_convenience_flag",
+      "importance": 0.0004
+    },
+    {
+      "feature": "is_large_vessel",
+      "importance": 0.0001
+    }
+  ]
+}
