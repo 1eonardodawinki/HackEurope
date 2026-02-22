@@ -9,6 +9,39 @@ const STATUS_COLORS = {
   suspicious: '#ff3355',
 }
 
+const SUSPICIOUS_PORTS = [
+  // Russian oil export ports
+  { name: 'Novorossiysk', lat: 44.7167, lon: 37.7833, category: 'russian' },
+  { name: 'Primorsk', lat: 60.3667, lon: 28.6333, category: 'russian' },
+  { name: 'Ust-Luga', lat: 59.6833, lon: 28.4000, category: 'russian' },
+  { name: 'Kozmino', lat: 42.7833, lon: 133.0500, category: 'russian' },
+  { name: 'Murmansk', lat: 68.9667, lon: 33.0500, category: 'russian' },
+  { name: 'Vladivostok', lat: 43.1167, lon: 131.9000, category: 'russian' },
+  // Iranian sanctioned ports
+  { name: 'Kharg Island', lat: 29.2333, lon: 50.3167, category: 'iranian' },
+  { name: 'Bandar Abbas', lat: 27.1833, lon: 56.2833, category: 'iranian' },
+  { name: 'Bandar Imam Khomeini', lat: 30.4333, lon: 49.0667, category: 'iranian' },
+  // Venezuelan sanctioned ports
+  { name: 'Jose Terminal', lat: 10.2000, lon: -64.7167, category: 'venezuelan' },
+  { name: 'Puerto La Cruz', lat: 10.2167, lon: -64.6333, category: 'venezuelan' },
+  { name: 'Amuay Bay', lat: 11.7500, lon: -70.2167, category: 'venezuelan' },
+  // North Korean sanctioned ports
+  { name: 'Nampo', lat: 38.7333, lon: 125.4000, category: 'northkorean' },
+  { name: 'Wonsan', lat: 39.1500, lon: 127.4500, category: 'northkorean' },
+  { name: 'Chongjin', lat: 41.7833, lon: 129.8167, category: 'northkorean' },
+]
+
+const STS_ZONES = [
+  { name: 'Ceuta', lat: 35.8900, lon: -5.3000, radiusKm: 50 },
+  { name: 'Kalamata', lat: 36.9500, lon: 22.1100, radiusKm: 50 },
+  { name: 'Laconia', lat: 36.5000, lon: 22.9000, radiusKm: 50 },
+  { name: 'Cape Town STS', lat: -34.0000, lon: 18.0000, radiusKm: 100 },
+  { name: 'Johor STS', lat: 1.3000, lon: 104.1000, radiusKm: 50 },
+  { name: 'Fujairah STS', lat: 25.1200, lon: 56.3300, radiusKm: 50 },
+  { name: 'Singapore STS', lat: 1.2000, lon: 103.8000, radiusKm: 50 },
+  { name: 'Lomé STS', lat: 6.1333, lon: 1.2500, radiusKm: 50 },
+]
+
 function circlePolygon(lon, lat, radius, n = 64) {
   const coords = []
   for (let i = 0; i <= n; i++) {
@@ -42,7 +75,7 @@ function buildHotzoneFeatures(hotzones, overrides) {
   })
 }
 
-export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, onDeleteZone, onAddZone, gfwPath, unmatchedPoints, mmsiInput, onTrackShip }) {
+export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, onDeleteZone, onAddZone, gfwPath, unmatchedPoints, onTrackByMmsi }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
   const shipsData = useRef({})
@@ -101,6 +134,44 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       })
 
       addHotzoneLayers()
+
+      // ── STS (Ship-to-Ship) Transfer Zones ──
+      const stsFeatures = STS_ZONES.map(z => ({
+        type: 'Feature',
+        properties: { name: z.name },
+        geometry: { type: 'Polygon', coordinates: circlePolygon(z.lon, z.lat, z.radiusKm / 111) },
+      }))
+      map.current.addSource('sts-zones', { type: 'geojson', data: { type: 'FeatureCollection', features: stsFeatures } })
+      map.current.addLayer({ id: 'sts-zones-fill', type: 'fill', source: 'sts-zones', paint: { 'fill-color': '#a855f7', 'fill-opacity': 0.07 } })
+      map.current.addLayer({ id: 'sts-zones-border', type: 'line', source: 'sts-zones', paint: { 'line-color': '#a855f7', 'line-width': 1.2, 'line-opacity': 0.65, 'line-dasharray': [3, 4] } })
+      map.current.addLayer({
+        id: 'sts-zones-label', type: 'symbol', source: 'sts-zones',
+        layout: { 'text-field': ['get', 'name'], 'text-size': 9, 'text-anchor': 'center', 'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'] },
+        paint: { 'text-color': 'rgba(168,85,247,0.8)', 'text-halo-color': '#000', 'text-halo-width': 1 },
+      })
+
+      // ── Suspicious / Sanctioned Ports ──
+      const portFeatures = SUSPICIOUS_PORTS.map(p => ({
+        type: 'Feature',
+        properties: { name: p.name, category: p.category, label: p.name },
+        geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
+      }))
+      map.current.addSource('suspicious-ports', { type: 'geojson', data: { type: 'FeatureCollection', features: portFeatures } })
+      map.current.addLayer({
+        id: 'suspicious-ports-dot', type: 'circle', source: 'suspicious-ports',
+        paint: {
+          'circle-radius': 5,
+          'circle-color': ['match', ['get', 'category'], 'russian', '#f59e0b', 'iranian', '#ff3355', 'venezuelan', '#f97316', 'northkorean', '#ef4444', '#ff3355'],
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#000',
+          'circle-opacity': 0.9,
+        },
+      })
+      map.current.addLayer({
+        id: 'suspicious-ports-label', type: 'symbol', source: 'suspicious-ports',
+        layout: { 'text-field': ['get', 'name'], 'text-size': 9, 'text-offset': [0, 1.2], 'text-anchor': 'top', 'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'] },
+        paint: { 'text-color': 'rgba(255,255,255,0.75)', 'text-halo-color': '#000', 'text-halo-width': 1.5 },
+      })
 
       // ── Ship trail layer ──
       map.current.addSource('ship-trails', {
@@ -567,23 +638,6 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
             </button>
           ))}
         </div>
-        <button
-          onClick={() => onTrackShip?.()}
-          disabled={!mmsiInput?.trim()}
-          style={{
-            ...styles.filterBtn,
-            marginTop: 6,
-            background: mmsiInput?.trim() ? '#fff' : 'rgba(8,8,8,0.9)',
-            color: mmsiInput?.trim() ? '#000' : 'var(--text3)',
-            borderColor: mmsiInput?.trim() ? '#fff' : 'rgba(255,255,255,0.08)',
-            fontWeight: 600,
-            opacity: mmsiInput?.trim() ? 1 : 0.5,
-            cursor: mmsiInput?.trim() ? 'pointer' : 'not-allowed',
-          }}
-          title="Show 1-year path (enter MMSI first)"
-        >
-          TRACK SHIP
-        </button>
       </div>
 
       {/* Ship tooltip */}
@@ -594,13 +648,31 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
             <span style={{ color: 'var(--text3)', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}
               onClick={() => onSelectShip(null)}>✕</span>
           </div>
-          <Row label="MMSI" value={selectedShip.mmsi} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+            <span style={{ color: 'var(--text3)', fontSize: 9, letterSpacing: 1.5 }}>MMSI</span>
+            <span
+              onClick={() => onTrackByMmsi?.(selectedShip.mmsi)}
+              style={{ color: 'var(--accent)', fontSize: 10, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+              title="Click to track this vessel"
+            >{selectedShip.mmsi}</span>
+          </div>
           <Row label="STATUS" value={selectedShip.status.toUpperCase()} valueColor={STATUS_COLORS[selectedShip.status]} />
           <Row label="TYPE" value={(selectedShip.type || 'unknown').toUpperCase()} />
           <Row label="POSITION" value={`${selectedShip.lat.toFixed(4)}°, ${selectedShip.lon.toFixed(4)}°`} />
           <Row label="SPEED" value={`${selectedShip.sog} kn`} />
           <Row label="COURSE" value={`${selectedShip.cog}°`} />
           {selectedShip.in_hotzone && <Row label="HOTZONE" value={selectedShip.in_hotzone} valueColor="var(--warning)" />}
+          <button
+            onClick={() => onTrackByMmsi?.(selectedShip.mmsi)}
+            style={{
+              marginTop: 10, width: '100%',
+              background: '#fff', color: '#000', border: 'none',
+              fontSize: 9, letterSpacing: 2, fontWeight: 700, fontFamily: 'inherit',
+              padding: '6px 0', cursor: 'pointer',
+            }}
+          >
+            TRACK SHIP
+          </button>
         </div>
       )}
 
@@ -635,6 +707,11 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         <LegendItem line color="#4a9eff" label="Activity within last 12 months" />
         <LegendItem ring color="var(--danger)" label="Historically went dark" />
         <LegendItem dashed color="#ff6b00" label="High Risk Areas" />
+        <LegendItem dashed color="#a855f7" label="STS Transfer Zones" />
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '6px 0 4px' }} />
+        <LegendItem dot color="#f59e0b" label="Russian Oil Ports" />
+        <LegendItem dot color="#ff3355" label="Iranian / NK Ports" />
+        <LegendItem dot color="#f97316" label="Venezuelan Ports" />
       </div>
     </div>
   )
@@ -649,7 +726,7 @@ function Row({ label, value, valueColor }) {
   )
 }
 
-function LegendItem({ color, label, ring, arrow, line, dashed }) {
+function LegendItem({ color, label, ring, arrow, line, dashed, dot }) {
   let icon
   if (arrow) {
     icon = (
@@ -667,6 +744,8 @@ function LegendItem({ color, label, ring, arrow, line, dashed }) {
         <div style={{ width: 3, height: 3, borderRadius: '50%', background: color }} />
       </div>
     )
+  } else if (dot) {
+    icon = <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, border: '1.5px solid #000', flexShrink: 0 }} />
   } else {
     icon = <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
   }
