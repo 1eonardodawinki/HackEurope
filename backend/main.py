@@ -20,6 +20,7 @@ from incident_detector import IncidentDetector
 from ml_model import get_dark_fleet_probability
 from agents.investigation_agents import run_parallel_investigation
 from agents.reporter_agent import generate_investigation_report
+from data_fetchers.gfw_fetcher import fetch_vessel_path
 import database as db
 
 # ── WebSocket Manager ─────────────────────────────────────────────────────────
@@ -229,7 +230,34 @@ async def investigate(body: InvestigationRequest):
     if _investigation_task and not _investigation_task.done():
         _investigation_task.cancel()
     _investigation_task = asyncio.create_task(_run_investigation(mmsi, vessel_name, flag_state, region))
+
+    # Fetch GFW 1-year path in background (sync call — run in executor)
+    async def _broadcast_gfw_path():
+        try:
+            result = await asyncio.to_thread(fetch_vessel_path, mmsi)
+            await manager.broadcast({"type": "gfw_path", "data": result})
+        except Exception:
+            await manager.broadcast({
+                "type": "gfw_path",
+                "data": {"mmsi": mmsi, "error": "Failed to fetch vessel path", "path": [], "metadata": {}},
+            })
+    asyncio.create_task(_broadcast_gfw_path())
+
     return {"status": "started", "mmsi": mmsi}
+
+
+@app.get("/gfw-path")
+async def get_gfw_path(mmsi: str):
+    """Fetch GFW 1-year path only (no full investigation). Returns path data for map."""
+    mmsi = mmsi.strip()
+    if not mmsi:
+        return {"error": "MMSI required", "path": [], "metadata": {}}
+    try:
+        result = await asyncio.to_thread(fetch_vessel_path, mmsi)
+        await manager.broadcast({"type": "gfw_path", "data": result})
+        return result
+    except Exception:
+        return {"mmsi": mmsi, "error": "Failed to fetch path", "path": [], "metadata": {}}
 
 
 @app.post("/mode")

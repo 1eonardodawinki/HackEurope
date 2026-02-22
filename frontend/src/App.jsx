@@ -20,6 +20,7 @@ export default function App() {
   const [mmsiInput, setMmsiInput] = useState('')
   const [investigating, setInvestigating] = useState(false)
   const [investigatedVessel, setInvestigatedVessel] = useState(null)
+  const [gfwPath, setGfwPath] = useState(null)
 
   const handleZoneChange = useCallback((name, geo) => {
     setZoneOverrides(prev => ({ ...prev, [name]: geo }))
@@ -52,6 +53,7 @@ export default function App() {
       setAgentStatus({ stage: 'idle', message: 'Monitoring...' })
       setLogs([])
       setInvestigatedVessel(null)
+      setGfwPath(null)
       setInvestigating(false)
       addLog({ kind: 'system', text: `Switched to ${data.demo_mode ? 'DEMO' : 'LIVE'} mode` })
     },
@@ -73,9 +75,21 @@ export default function App() {
     },
     onInvestigationStart: (data) => {
       // Backend confirmed vessel location — update map highlight with latest AIS data
+      setGfwPath(null)  // Clear previous path when new investigation starts
       if (data.vessel) {
         setSelectedShip(data.vessel)
         setInvestigatedVessel(data.vessel)
+      }
+    },
+    onGfwPath: (data) => {
+      setGfwPath(data)
+      // Enrich investigated vessel with GFW metadata (name, type) when available
+      if (data?.metadata) {
+        setInvestigatedVessel(prev => prev && String(prev.mmsi) === String(data.mmsi) ? {
+          ...prev,
+          name: data.metadata.name || prev.name,
+          type: data.metadata.ship_type || prev.type,
+        } : prev)
       }
     },
     onReport: (data) => {
@@ -86,12 +100,36 @@ export default function App() {
     },
   })
 
+  const trackShip = async () => {
+    const mmsi = mmsiInput.trim()
+    if (!mmsi || !connected) return
+    setGfwPath(null)
+    const vessel = ships.find((s) => String(s.mmsi) === mmsi)
+    if (vessel) {
+      setSelectedShip(vessel)
+      setInvestigatedVessel(vessel)
+    } else {
+      setInvestigatedVessel({ mmsi, name: 'Loading…', notFound: true })
+    }
+    try {
+      const r = await fetch(`http://localhost:8000/gfw-path?mmsi=${encodeURIComponent(mmsi)}`)
+      const data = await r.json()
+      setGfwPath(data)
+      if (data?.metadata?.name) {
+        setInvestigatedVessel((prev) => (prev && String(prev.mmsi) === mmsi ? { ...prev, name: data.metadata.name, type: data.metadata.ship_type } : prev))
+      }
+    } catch {
+      setGfwPath({ mmsi, error: 'Failed to fetch path', path: [], metadata: {} })
+    }
+  }
+
   const submitInvestigation = async () => {
     const mmsi = mmsiInput.trim()
     if (!mmsi || investigating) return
     setInvestigating(true)
 
     // Immediately highlight the vessel on the map if it's in the current AIS feed
+    setGfwPath(null)  // Clear path when starting new investigation
     const vessel = ships.find(s => String(s.mmsi) === mmsi)
     if (vessel) {
       setSelectedShip(vessel)
@@ -202,6 +240,9 @@ export default function App() {
             editZones={editZones}
             zoneOverrides={zoneOverrides}
             onZoneChange={handleZoneChange}
+            gfwPath={gfwPath}
+            mmsiInput={mmsiInput}
+            onTrackShip={trackShip}
           />
         </div>
 
@@ -213,6 +254,7 @@ export default function App() {
           onOpenReport={() => setShowReport(true)}
           hasReport={!!report}
           onAbort={abortInvestigation}
+          gfwPath={gfwPath}
         />
       </div>
 
