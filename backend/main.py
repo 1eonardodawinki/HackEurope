@@ -341,6 +341,41 @@ async def get_gfw_path(mmsi: str):
         return {"mmsi": mmsi, "error": "Failed to fetch path", "path": [], "metadata": {}}
 
 
+@app.get("/dark-events")
+async def get_dark_events(limit: int = 4000):
+    """Return a sampled set of unmatched SAR detections (vessels with no AIS = went dark)."""
+    def _fetch():
+        if not os.path.exists(HISTORICAL_DB_PATH):
+            return {"points": [], "total": 0}
+        conn = sqlite3.connect(HISTORICAL_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            total = conn.execute(
+                "SELECT COUNT(*) FROM historical_detections WHERE mmsi IS NULL OR mmsi = '' OR mmsi = 'None'"
+            ).fetchone()[0]
+            rows = conn.execute(
+                """
+                SELECT lat, lon, timestamp
+                FROM historical_detections
+                WHERE (mmsi IS NULL OR mmsi = '' OR mmsi = 'None')
+                  AND lat IS NOT NULL AND lon IS NOT NULL
+                ORDER BY RANDOM()
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        finally:
+            conn.close()
+        return {
+            "points": [{"lat": r["lat"], "lon": r["lon"], "timestamp": r["timestamp"]} for r in rows],
+            "total": total,
+        }
+    try:
+        return await asyncio.to_thread(_fetch)
+    except Exception:
+        return {"points": [], "total": 0}
+
+
 @app.get("/historical-unmatched")
 async def get_historical_unmatched(mmsi: str):
     """Fetch unmatched historical points for map overlay."""
