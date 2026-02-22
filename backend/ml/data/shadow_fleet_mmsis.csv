@@ -1,0 +1,1301 @@
+mmsi,flag,vessel_class,label
+626448062,Gabon,fishing,1
+354184531,Panama,tanker,1
+671420580,Togo,tanker,1
+616309486,Comoros,tanker,1
+674517697,Tanzania,container,1
+354714164,Panama,tanker,1
+637670378,Liberia,tanker,1
+538661818,Marshall Islands,tanker,1
+352754550,Panama,tanker,1
+637507565,Liberia,tanker,1
+511349224,Palau,cargo,1
+674292461,Tanzania,tanker,1
+626483130,Gabon,tanker,1
+616195914,Comoros,tanker,1
+616666390,Comoros,tanker,1
+565427927,Singapore,tanker,1
+351491472,Panama,tanker,1
+511807476,Palau,tanker,1
+613607470,Cameroon,tanker,1
+616115712,Comoros,tanker,1
+671201944,Togo,tanker,1
+616449155,Comoros,tanker,1
+511842038,Palau,cargo,1
+538166122,Marshall Islands,tanker,1
+626699220,Gabon,tanker,1
+565932962,Singapore,tanker,1
+237502499,Greece,cargo,1
+432154307,Japan,tanker,1
+616732099,Comoros,tanker,1
+538713578,Marshall Islands,tanker,1
+538945419,Marshall Islands,tanker,1
+357125967,Panama,tanker,1
+626078141,Gabon,cargo,1
+636563952,Liberia,cargo,1
+637817174,Liberia,container,1
+441446780,South Korea,tanker,1
+511235769,Palau,tanker,1
+674941698,Tanzania,tanker,1
+671788918,Togo,tanker,1
+257391995,Norway,tanker,1
+637070118,Liberia,tanker,1
+356395787,Panama,tanker,1
+674226594,Tanzania,tanker,1
+671108104,Togo,tanker,1
+219938576,Denmark,tanker,1
+626359884,Gabon,tanker,1
+351441462,Panama,tanker,1
+613316227,Cameroon,cargo,1
+671459846,Togo,tanker,1
+353170256,Panama,cargo,1
+626067505,Gabon,tanker,1
+219547979,Denmark,tanker,1
+671561115,Togo,tanker,1
+616797542,Comoros,bulk_carrier,1
+626704674,Gabon,tanker,1
+616887627,Comoros,tanker,1
+613095473,Cameroon,tanker,1
+414641369,China,tanker,1
+538886114,Marshall Islands,tanker,1
+626784294,Gabon,tanker,1
+441513908,South Korea,tanker,1
+626906166,Gabon,cargo,1
+354187810,Panama,tanker,1
+671108698,Togo,tanker,1
+616899178,Comoros,tanker,1
+616116557,Comoros,tanker,1
+674701020,Tanzania,passenger,1
+616060028,Comoros,tanker,1
+616139545,Comoros,tanker,1
+674295345,Tanzania,tanker,1
+237456494,Greece,tanker,1
+353647646,Panama,tanker,1
+671563902,Togo,tanker,1
+613355756,Cameroon,tanker,1
+613514565,Cameroon,tanker,1
+412985752,China,tanker,1
+674010088,Tanzania,tanker,1
+511173079,Palau,tanker,1
+355126615,Panama,bulk_carrier,1
+613437617,Cameroon,tanker,1
+616275417,Comoros,tanker,1
+636889615,Liberia,tanker,1
+511044491,Palau,tanker,1
+626212149,Gabon,tanker,1
+626888656,Gabon,tanker,1
+616375839,Comoros,tanker,1
+366549351,USA,tanker,1
+674510399,Tanzania,tanker,1
+538120696,Marshall Islands,tanker,1
+511421756,Palau,passenger,1
+671769572,Togo,tanker,1
+671578465,Togo,tanker,1
+239879763,Greece,tanker,1
+671489843,Togo,tanker,1
+671255829,Togo,tanker,1
+671031967,Togo,tanker,1
+616383092,Comoros,tanker,1
+671526507,Togo,cargo,1
+613485378,Cameroon,tanker,1
+636588160,Liberia,tanker,1
+235627451,UK,tanker,1
+616503492,Comoros,tanker,1
+511325034,Palau,tanker,1
+674997559,Tanzania,cargo,1
+538893597,Marshall Islands,tanker,1
+674223113,Tanzania,tanker,1
+674576484,Tanzania,other,1
+218274115,Germany,tanker,1
+441941099,South Korea,tanker,1
+626094257,Gabon,tanker,1
+538708642,Marshall Islands,tanker,1
+636214810,Liberia,tanker,1
+613457485,Cameroon,tanker,1
+538863273,Marshall Islands,bulk_carrier,1
+674711603,Tanzania,cargo,1
+637011764,Liberia,tanker,1
+431028564,Japan,tanker,1
+636954969,Liberia,tanker,1
+671571622,Togo,tanker,1
+674073307,Tanzania,tanker,1
+637318152,Liberia,tanker,1
+637519209,Liberia,other,1
+355808451,Panama,tanker,1
+626123698,Gabon,tanker,1
+674882661,Tanzania,tanker,1
+511752779,Palau,tanker,1
+356354490,Panama,cargo,1
+511139216,Palau,cargo,1
+636487686,Liberia,tanker,1
+613579541,Cameroon,cargo,1
+511002474,Palau,fishing,1
+357863633,Panama,tanker,1
+626595401,Gabon,tanker,1
+538136030,Marshall Islands,tanker,1
+671583242,Togo,tanker,1
+511210040,Palau,tanker,1
+671221237,Togo,cargo,1
+218395041,Germany,tanker,1
+674876455,Tanzania,tanker,1
+239557728,Greece,tanker,1
+613026941,Cameroon,cargo,1
+637616404,Liberia,tanker,1
+235735572,UK,tanker,1
+259073524,Norway,tanker,1
+613131190,Cameroon,bulk_carrier,1
+511921280,Palau,tanker,1
+671604945,Togo,tanker,1
+235734818,UK,tanker,1
+671076607,Togo,tanker,1
+233267059,UK,tanker,1
+674141764,Tanzania,cargo,1
+613743665,Cameroon,tanker,1
+626106985,Gabon,tanker,1
+352945761,Panama,bulk_carrier,1
+538348517,Marshall Islands,tanker,1
+637436444,Liberia,tanker,1
+637763083,Liberia,tanker,1
+440961182,South Korea,tanker,1
+671972955,Togo,bulk_carrier,1
+616360379,Comoros,tanker,1
+511478963,Palau,bulk_carrier,1
+613857446,Cameroon,tanker,1
+220389907,Denmark,tanker,1
+626462666,Gabon,tanker,1
+538226828,Marshall Islands,tanker,1
+511718216,Palau,tanker,1
+440191044,South Korea,bulk_carrier,1
+626915722,Gabon,cargo,1
+616851145,Comoros,tanker,1
+511090905,Palau,tanker,1
+412241420,China,tanker,1
+616898943,Comoros,tanker,1
+538282158,Marshall Islands,tanker,1
+538050200,Marshall Islands,tanker,1
+613783101,Cameroon,cargo,1
+511800435,Palau,tanker,1
+616577433,Comoros,tanker,1
+671170311,Togo,tanker,1
+241196149,Greece,cargo,1
+413162469,China,tanker,1
+538383740,Marshall Islands,tanker,1
+626224271,Gabon,tanker,1
+674151345,Tanzania,tanker,1
+352587671,Panama,cargo,1
+674940324,Tanzania,tanker,1
+626804214,Gabon,tanker,1
+239332053,Greece,tanker,1
+674809607,Tanzania,tanker,1
+352897186,Panama,other,1
+511034905,Palau,tanker,1
+413542993,China,tanker,1
+626321917,Gabon,tanker,1
+674448639,Tanzania,bulk_carrier,1
+538495342,Marshall Islands,tanker,1
+626035031,Gabon,tanker,1
+674577525,Tanzania,cargo,1
+674906983,Tanzania,cargo,1
+626096950,Gabon,tanker,1
+352440579,Panama,cargo,1
+538026147,Marshall Islands,tanker,1
+259788195,Norway,cargo,1
+613854256,Cameroon,tanker,1
+671141187,Togo,tanker,1
+616800955,Comoros,tanker,1
+511137610,Palau,tanker,1
+511151431,Palau,bulk_carrier,1
+258920569,Norway,tanker,1
+674302539,Tanzania,bulk_carrier,1
+511359303,Palau,tanker,1
+671089175,Togo,cargo,1
+674490192,Tanzania,tanker,1
+412068175,China,fishing,1
+367197353,USA,cargo,1
+511744483,Palau,tanker,1
+616057741,Comoros,tanker,1
+671822982,Togo,tanker,1
+257503190,Norway,tanker,1
+432667258,Japan,tanker,1
+239104244,Greece,bulk_carrier,1
+637416316,Liberia,tanker,1
+616791797,Comoros,tanker,1
+636594290,Liberia,tanker,1
+511752276,Palau,tanker,1
+511824708,Palau,tanker,1
+674461876,Tanzania,tanker,1
+671973546,Togo,tanker,1
+674525731,Tanzania,tanker,1
+538872510,Marshall Islands,tanker,1
+671351877,Togo,tanker,1
+674481322,Tanzania,tanker,1
+538104427,Marshall Islands,tanker,1
+613822331,Cameroon,tanker,1
+637713123,Liberia,tanker,1
+637257093,Liberia,tanker,1
+564648895,Singapore,tanker,1
+674544444,Tanzania,tanker,1
+219721708,Denmark,other,1
+239147286,Greece,bulk_carrier,1
+626221217,Gabon,bulk_carrier,1
+257661712,Norway,tanker,1
+674269842,Tanzania,tanker,1
+354946277,Panama,tanker,1
+338605539,USA,tanker,1
+616870133,Comoros,tanker,1
+616544478,Comoros,tanker,1
+239642902,Greece,tanker,1
+613412114,Cameroon,tanker,1
+564862621,Singapore,tanker,1
+538924863,Marshall Islands,tanker,1
+613712396,Cameroon,tanker,1
+674885306,Tanzania,tanker,1
+637179408,Liberia,tanker,1
+240624192,Greece,tanker,1
+674387997,Tanzania,tanker,1
+538713749,Marshall Islands,tanker,1
+413366409,China,tanker,1
+257576369,Norway,cargo,1
+636262698,Liberia,tanker,1
+538564404,Marshall Islands,cargo,1
+613498037,Cameroon,tanker,1
+616822554,Comoros,tanker,1
+674394716,Tanzania,tanker,1
+636063208,Liberia,tanker,1
+636291969,Liberia,tanker,1
+636113009,Liberia,tanker,1
+441070648,South Korea,tanker,1
+613473140,Cameroon,tanker,1
+637278639,Liberia,cargo,1
+616237246,Comoros,cargo,1
+538235264,Marshall Islands,tanker,1
+626665660,Gabon,tanker,1
+671234877,Togo,tanker,1
+538945406,Marshall Islands,cargo,1
+626697104,Gabon,tanker,1
+511549954,Palau,tanker,1
+626064375,Gabon,tanker,1
+616199146,Comoros,tanker,1
+538712299,Marshall Islands,tanker,1
+235272326,UK,tanker,1
+431536784,Japan,tanker,1
+219394294,Denmark,cargo,1
+671036505,Togo,tanker,1
+616783435,Comoros,tanker,1
+636217951,Liberia,tanker,1
+357260009,Panama,tanker,1
+626562464,Gabon,tanker,1
+237515935,Greece,tanker,1
+637159984,Liberia,tanker,1
+616270134,Comoros,tanker,1
+616266758,Comoros,tanker,1
+626662108,Gabon,tanker,1
+538185942,Marshall Islands,cargo,1
+235508779,UK,cargo,1
+674008069,Tanzania,tanker,1
+626677077,Gabon,tanker,1
+511399170,Palau,tanker,1
+613595702,Cameroon,cargo,1
+440564912,South Korea,tanker,1
+511066833,Palau,tanker,1
+354308753,Panama,tanker,1
+674113864,Tanzania,tanker,1
+636524124,Liberia,tanker,1
+613066333,Cameroon,tanker,1
+626343378,Gabon,tanker,1
+636657384,Liberia,tanker,1
+412962792,China,tanker,1
+220703495,Denmark,tanker,1
+237041853,Greece,tanker,1
+351207992,Panama,tanker,1
+357759992,Panama,tanker,1
+636488335,Liberia,fishing,1
+636435276,Liberia,tanker,1
+511343374,Palau,tanker,1
+511220943,Palau,tanker,1
+671267312,Togo,bulk_carrier,1
+674476943,Tanzania,tanker,1
+674146300,Tanzania,tanker,1
+671723280,Togo,tanker,1
+613393333,Cameroon,tanker,1
+355939057,Panama,tanker,1
+511784814,Palau,tanker,1
+357409947,Panama,tanker,1
+616777865,Comoros,tanker,1
+674806442,Tanzania,tanker,1
+239889473,Greece,tanker,1
+613501736,Cameroon,tanker,1
+626690749,Gabon,tanker,1
+626128353,Gabon,cargo,1
+538372035,Marshall Islands,tanker,1
+538206313,Marshall Islands,cargo,1
+671153744,Togo,tanker,1
+440382479,South Korea,tanker,1
+218333364,Germany,tanker,1
+338476050,USA,tanker,1
+511079874,Palau,tanker,1
+674854280,Tanzania,tanker,1
+636623633,Liberia,tanker,1
+353252925,Panama,cargo,1
+616496598,Comoros,tanker,1
+511770507,Palau,cargo,1
+511758580,Palau,tanker,1
+259644018,Norway,tanker,1
+613487701,Cameroon,tanker,1
+626623626,Gabon,tanker,1
+357799372,Panama,tanker,1
+511755425,Palau,cargo,1
+613301731,Cameroon,tanker,1
+538698090,Marshall Islands,tanker,1
+613932111,Cameroon,tanker,1
+626383174,Gabon,tanker,1
+626560316,Gabon,tanker,1
+351098780,Panama,tanker,1
+259245742,Norway,tanker,1
+440158902,South Korea,cargo,1
+511728403,Palau,tanker,1
+616372830,Comoros,cargo,1
+636698024,Liberia,tanker,1
+636920371,Liberia,tanker,1
+354035199,Panama,tanker,1
+538652767,Marshall Islands,cargo,1
+511572835,Palau,tanker,1
+671159431,Togo,tanker,1
+674971017,Tanzania,tanker,1
+616100686,Comoros,tanker,1
+674543961,Tanzania,tanker,1
+671673941,Togo,tanker,1
+674500448,Tanzania,tanker,1
+626162776,Gabon,tanker,1
+352859856,Panama,tanker,1
+356883595,Panama,tanker,1
+259352330,Norway,tanker,1
+671935929,Togo,tanker,1
+356788519,Panama,bulk_carrier,1
+626999865,Gabon,tanker,1
+211106679,Germany,tanker,1
+626969057,Gabon,tanker,1
+626207238,Gabon,tanker,1
+671231358,Togo,tanker,1
+613990998,Cameroon,tanker,1
+511650099,Palau,tanker,1
+626853504,Gabon,tanker,1
+674309416,Tanzania,tanker,1
+538167932,Marshall Islands,tanker,1
+538480866,Marshall Islands,tanker,1
+616334070,Comoros,tanker,1
+626567483,Gabon,tanker,1
+235119302,UK,tanker,1
+674648321,Tanzania,tanker,1
+626876818,Gabon,cargo,1
+538995944,Marshall Islands,tanker,1
+511011468,Palau,tanker,1
+432854370,Japan,tanker,1
+432899389,Japan,tanker,1
+671147533,Togo,tanker,1
+626488566,Gabon,tanker,1
+511283177,Palau,tanker,1
+431883797,Japan,tanker,1
+239283704,Greece,cargo,1
+511172386,Palau,tanker,1
+613583860,Cameroon,tanker,1
+626423443,Gabon,tanker,1
+234703685,UK,tanker,1
+674773276,Tanzania,tanker,1
+413082948,China,tanker,1
+671398866,Togo,tanker,1
+511045832,Palau,tanker,1
+257328108,Norway,tanker,1
+563455598,Singapore,tanker,1
+538787311,Marshall Islands,cargo,1
+613150352,Cameroon,tanker,1
+538705903,Marshall Islands,tanker,1
+674471271,Tanzania,tanker,1
+356581058,Panama,tanker,1
+511655467,Palau,tanker,1
+671595406,Togo,tanker,1
+538728102,Marshall Islands,tanker,1
+616125141,Comoros,tanker,1
+538276267,Marshall Islands,bulk_carrier,1
+234047298,UK,tanker,1
+674567739,Tanzania,tanker,1
+626122635,Gabon,tanker,1
+616282640,Comoros,tanker,1
+616524197,Comoros,tanker,1
+432997042,Japan,tanker,1
+637454287,Liberia,tanker,1
+616536017,Comoros,tanker,1
+616235825,Comoros,tanker,1
+352438435,Panama,bulk_carrier,1
+616170494,Comoros,tanker,1
+613481846,Cameroon,bulk_carrier,1
+626840042,Gabon,tanker,1
+636355011,Liberia,tanker,1
+511532404,Palau,tanker,1
+671895666,Togo,passenger,1
+563865413,Singapore,bulk_carrier,1
+564662950,Singapore,cargo,1
+674155161,Tanzania,tanker,1
+565027795,Singapore,tanker,1
+352526454,Panama,tanker,1
+613957896,Cameroon,tanker,1
+671260198,Togo,tanker,1
+538741357,Marshall Islands,bulk_carrier,1
+356114975,Panama,tanker,1
+538269176,Marshall Islands,tanker,1
+671953382,Togo,tanker,1
+637212995,Liberia,tanker,1
+637681682,Liberia,tanker,1
+616240959,Comoros,tanker,1
+237395850,Greece,tanker,1
+565068654,Singapore,tanker,1
+538655130,Marshall Islands,tanker,1
+565465287,Singapore,bulk_carrier,1
+613233375,Cameroon,tanker,1
+511328806,Palau,tanker,1
+613232191,Cameroon,tanker,1
+616568329,Comoros,tanker,1
+637143669,Liberia,tanker,1
+674607668,Tanzania,tanker,1
+511522584,Palau,tanker,1
+354946117,Panama,tanker,1
+259570809,Norway,tanker,1
+616222212,Comoros,tanker,1
+626924475,Gabon,cargo,1
+241391490,Greece,tanker,1
+636992109,Liberia,tanker,1
+626376410,Gabon,tanker,1
+671560446,Togo,tanker,1
+671261938,Togo,tanker,1
+538252166,Marshall Islands,bulk_carrier,1
+232602757,UK,tanker,1
+353035149,Panama,tanker,1
+356071821,Panama,tanker,1
+674131430,Tanzania,tanker,1
+356919910,Panama,tanker,1
+616015086,Comoros,passenger,1
+626946301,Gabon,tanker,1
+674697284,Tanzania,tanker,1
+671718115,Togo,tanker,1
+538462673,Marshall Islands,tanker,1
+626957398,Gabon,tanker,1
+671002021,Togo,tanker,1
+671795618,Togo,tanker,1
+616038258,Comoros,tanker,1
+674896412,Tanzania,tanker,1
+626153051,Gabon,tanker,1
+538373689,Marshall Islands,cargo,1
+626852328,Gabon,cargo,1
+234429460,UK,tanker,1
+538510001,Marshall Islands,tanker,1
+616024197,Comoros,bulk_carrier,1
+413166757,China,tanker,1
+636916640,Liberia,tanker,1
+674606140,Tanzania,tanker,1
+356554240,Panama,tanker,1
+671101943,Togo,tanker,1
+613090204,Cameroon,tanker,1
+234576424,UK,tanker,1
+356330947,Panama,tanker,1
+441408855,South Korea,bulk_carrier,1
+538024313,Marshall Islands,tanker,1
+671513783,Togo,tanker,1
+637715873,Liberia,tanker,1
+613032423,Cameroon,tanker,1
+637831325,Liberia,tanker,1
+626636313,Gabon,cargo,1
+563135746,Singapore,cargo,1
+257218496,Norway,tanker,1
+626995412,Gabon,tanker,1
+211278980,Germany,tanker,1
+674058454,Tanzania,cargo,1
+671328571,Togo,tanker,1
+511042624,Palau,tanker,1
+211843261,Germany,tanker,1
+613886948,Cameroon,tanker,1
+563701593,Singapore,tanker,1
+538271008,Marshall Islands,cargo,1
+613672398,Cameroon,tanker,1
+351196729,Panama,cargo,1
+538447303,Marshall Islands,tanker,1
+538334379,Marshall Islands,tanker,1
+511435648,Palau,cargo,1
+674243708,Tanzania,tanker,1
+637377264,Liberia,tanker,1
+234315827,UK,tanker,1
+219953066,Denmark,tanker,1
+613866425,Cameroon,tanker,1
+219987968,Denmark,tanker,1
+637881537,Liberia,tanker,1
+511389440,Palau,tanker,1
+626727627,Gabon,tanker,1
+234558421,UK,tanker,1
+412128486,China,tanker,1
+511079459,Palau,tanker,1
+626509812,Gabon,tanker,1
+671582317,Togo,tanker,1
+538353184,Marshall Islands,tanker,1
+538676457,Marshall Islands,cargo,1
+636773248,Liberia,tanker,1
+538049587,Marshall Islands,bulk_carrier,1
+674210592,Tanzania,bulk_carrier,1
+538261223,Marshall Islands,tanker,1
+218656433,Germany,tanker,1
+636274184,Liberia,tanker,1
+616961121,Comoros,container,1
+511530580,Palau,tanker,1
+637018614,Liberia,tanker,1
+352248729,Panama,tanker,1
+637051846,Liberia,tanker,1
+366826322,USA,tanker,1
+613158386,Cameroon,tanker,1
+674833952,Tanzania,tanker,1
+538947401,Marshall Islands,tanker,1
+218336026,Germany,tanker,1
+671422504,Togo,tanker,1
+353596500,Panama,tanker,1
+637778179,Liberia,tanker,1
+219748895,Denmark,tanker,1
+563478778,Singapore,tanker,1
+671592945,Togo,tanker,1
+431479774,Japan,tanker,1
+367001722,USA,cargo,1
+674075741,Tanzania,tanker,1
+616220921,Comoros,passenger,1
+538280478,Marshall Islands,tanker,1
+511693946,Palau,tanker,1
+511760871,Palau,tanker,1
+219235691,Denmark,tanker,1
+671026300,Togo,tanker,1
+511647640,Palau,tanker,1
+538512001,Marshall Islands,tanker,1
+432958185,Japan,tanker,1
+671402168,Togo,tanker,1
+674505735,Tanzania,tanker,1
+218644674,Germany,tanker,1
+616690774,Comoros,tanker,1
+538060985,Marshall Islands,tanker,1
+352545293,Panama,tanker,1
+613814674,Cameroon,tanker,1
+351329532,Panama,tanker,1
+626138211,Gabon,tanker,1
+636191084,Liberia,tanker,1
+674429205,Tanzania,tanker,1
+671518645,Togo,tanker,1
+616304815,Comoros,tanker,1
+636513560,Liberia,cargo,1
+303504882,USA,tanker,1
+613953674,Cameroon,tanker,1
+538902352,Marshall Islands,tanker,1
+234575257,UK,tanker,1
+353644703,Panama,tanker,1
+356128327,Panama,cargo,1
+353969771,Panama,tanker,1
+259103335,Norway,tanker,1
+636044611,Liberia,tanker,1
+613957150,Cameroon,tanker,1
+616496305,Comoros,tanker,1
+613204214,Cameroon,other,1
+233708302,UK,tanker,1
+616311672,Comoros,cargo,1
+613510471,Cameroon,tanker,1
+671119504,Togo,tanker,1
+626903782,Gabon,tanker,1
+441294666,South Korea,tanker,1
+636762581,Liberia,tanker,1
+233088457,UK,tanker,1
+511262323,Palau,tanker,1
+613154468,Cameroon,tanker,1
+239484977,Greece,tanker,1
+637627689,Liberia,tanker,1
+626491008,Gabon,tanker,1
+613941332,Cameroon,tanker,1
+674925061,Tanzania,tanker,1
+355841122,Panama,tanker,1
+538594256,Marshall Islands,tanker,1
+211970759,Germany,tanker,1
+368653732,USA,tanker,1
+511479575,Palau,tanker,1
+674058457,Tanzania,cargo,1
+353151530,Panama,tanker,1
+637630570,Liberia,tanker,1
+351067404,Panama,tanker,1
+511475004,Palau,tanker,1
+671656258,Togo,tanker,1
+616094356,Comoros,container,1
+563277153,Singapore,passenger,1
+211771863,Germany,cargo,1
+511911094,Palau,tanker,1
+626892959,Gabon,cargo,1
+637208810,Liberia,tanker,1
+626605472,Gabon,tanker,1
+538155010,Marshall Islands,tanker,1
+616413073,Comoros,tanker,1
+441819542,South Korea,fishing,1
+613770514,Cameroon,cargo,1
+613679814,Cameroon,tanker,1
+511830916,Palau,tanker,1
+674450860,Tanzania,tanker,1
+219597842,Denmark,tanker,1
+538448570,Marshall Islands,other,1
+441802805,South Korea,cargo,1
+613909316,Cameroon,tanker,1
+671992599,Togo,tanker,1
+626755844,Gabon,tanker,1
+538684271,Marshall Islands,tanker,1
+671351379,Togo,tanker,1
+538278204,Marshall Islands,bulk_carrier,1
+218358950,Germany,tanker,1
+626300738,Gabon,cargo,1
+412840860,China,tanker,1
+626881016,Gabon,tanker,1
+235748754,UK,tanker,1
+674504826,Tanzania,bulk_carrier,1
+626772759,Gabon,fishing,1
+626347541,Gabon,tanker,1
+613501952,Cameroon,tanker,1
+237095732,Greece,tanker,1
+432351871,Japan,tanker,1
+626260354,Gabon,tanker,1
+674767775,Tanzania,tanker,1
+354943387,Panama,tanker,1
+636162979,Liberia,tanker,1
+511236156,Palau,tanker,1
+511151122,Palau,tanker,1
+257375058,Norway,tanker,1
+674402318,Tanzania,cargo,1
+616344257,Comoros,tanker,1
+357635236,Panama,tanker,1
+240464332,Greece,tanker,1
+671369982,Togo,cargo,1
+351941635,Panama,tanker,1
+564868772,Singapore,cargo,1
+636727595,Liberia,cargo,1
+352039404,Panama,cargo,1
+616476740,Comoros,tanker,1
+636713757,Liberia,cargo,1
+511236482,Palau,tanker,1
+511497984,Palau,tanker,1
+616829567,Comoros,tanker,1
+511510064,Palau,tanker,1
+674104964,Tanzania,tanker,1
+431174220,Japan,tanker,1
+613217875,Cameroon,tanker,1
+441202880,South Korea,tanker,1
+637595530,Liberia,tanker,1
+369138908,USA,tanker,1
+511987966,Palau,tanker,1
+258188284,Norway,tanker,1
+637842193,Liberia,tanker,1
+218363673,Germany,cargo,1
+357184306,Panama,tanker,1
+626145546,Gabon,tanker,1
+511985166,Palau,tanker,1
+636321463,Liberia,tanker,1
+674306119,Tanzania,tanker,1
+636032596,Liberia,tanker,1
+671285841,Togo,tanker,1
+565119541,Singapore,tanker,1
+636451468,Liberia,tanker,1
+616143908,Comoros,tanker,1
+538417078,Marshall Islands,bulk_carrier,1
+613779330,Cameroon,tanker,1
+538047247,Marshall Islands,cargo,1
+613414258,Cameroon,fishing,1
+616832182,Comoros,tanker,1
+353474226,Panama,cargo,1
+674345053,Tanzania,tanker,1
+637670737,Liberia,tanker,1
+674134913,Tanzania,tanker,1
+616610312,Comoros,tanker,1
+626325020,Gabon,tanker,1
+219912503,Denmark,tanker,1
+511469409,Palau,tanker,1
+220514625,Denmark,tanker,1
+626062360,Gabon,tanker,1
+511440727,Palau,tanker,1
+211539981,Germany,tanker,1
+538448072,Marshall Islands,bulk_carrier,1
+671144685,Togo,tanker,1
+616344897,Comoros,tanker,1
+613515268,Cameroon,bulk_carrier,1
+511227595,Palau,tanker,1
+511637942,Palau,tanker,1
+613791502,Cameroon,tanker,1
+616880408,Comoros,tanker,1
+637264230,Liberia,tanker,1
+538770237,Marshall Islands,tanker,1
+637546660,Liberia,tanker,1
+431978691,Japan,tanker,1
+671634525,Togo,tanker,1
+616725633,Comoros,tanker,1
+616633781,Comoros,tanker,1
+674693292,Tanzania,tanker,1
+636029568,Liberia,tanker,1
+671188179,Togo,cargo,1
+626427124,Gabon,tanker,1
+356371659,Panama,tanker,1
+616258641,Comoros,tanker,1
+613325786,Cameroon,tanker,1
+626173879,Gabon,tanker,1
+626256995,Gabon,tanker,1
+674666522,Tanzania,tanker,1
+616924852,Comoros,tanker,1
+616104522,Comoros,tanker,1
+538506656,Marshall Islands,tanker,1
+220440452,Denmark,tanker,1
+440637123,South Korea,tanker,1
+637214038,Liberia,tanker,1
+538291949,Marshall Islands,tanker,1
+613276190,Cameroon,tanker,1
+674784226,Tanzania,tanker,1
+511028574,Palau,tanker,1
+414584636,China,tanker,1
+616550108,Comoros,tanker,1
+674213871,Tanzania,cargo,1
+636135342,Liberia,other,1
+219698284,Denmark,tanker,1
+233057596,UK,tanker,1
+671341292,Togo,tanker,1
+511253243,Palau,tanker,1
+211344113,Germany,tanker,1
+613430890,Cameroon,tanker,1
+565284078,Singapore,tanker,1
+613069668,Cameroon,cargo,1
+616086782,Comoros,tanker,1
+511683146,Palau,tanker,1
+357168790,Panama,tanker,1
+354257550,Panama,tanker,1
+235129162,UK,tanker,1
+511020823,Palau,tanker,1
+674792338,Tanzania,cargo,1
+440061094,South Korea,tanker,1
+613355340,Cameroon,other,1
+538846637,Marshall Islands,tanker,1
+674367867,Tanzania,tanker,1
+674216005,Tanzania,tanker,1
+626026301,Gabon,tanker,1
+338576267,USA,tanker,1
+240423772,Greece,tanker,1
+511243160,Palau,tanker,1
+616084821,Comoros,cargo,1
+671236032,Togo,tanker,1
+674041447,Tanzania,tanker,1
+613029809,Cameroon,tanker,1
+626671317,Gabon,tanker,1
+613139294,Cameroon,tanker,1
+511168046,Palau,tanker,1
+355896348,Panama,tanker,1
+613418883,Cameroon,tanker,1
+241144968,Greece,tanker,1
+671795977,Togo,tanker,1
+637913917,Liberia,tanker,1
+637673645,Liberia,tanker,1
+674296232,Tanzania,tanker,1
+616753103,Comoros,other,1
+626923492,Gabon,tanker,1
+636500904,Liberia,tanker,1
+674830315,Tanzania,tanker,1
+636357272,Liberia,tanker,1
+538367628,Marshall Islands,tanker,1
+626875823,Gabon,tanker,1
+356249475,Panama,tanker,1
+218534632,Germany,tanker,1
+674794849,Tanzania,tanker,1
+257514980,Norway,tanker,1
+538277125,Marshall Islands,tanker,1
+674912207,Tanzania,tanker,1
+538925438,Marshall Islands,tanker,1
+671332336,Togo,tanker,1
+626371153,Gabon,tanker,1
+616588217,Comoros,tanker,1
+538430194,Marshall Islands,tanker,1
+637700991,Liberia,bulk_carrier,1
+211603048,Germany,tanker,1
+626584209,Gabon,tanker,1
+241072942,Greece,tanker,1
+626400055,Gabon,tanker,1
+616110641,Comoros,tanker,1
+351772038,Panama,tanker,1
+616036606,Comoros,tanker,1
+671920455,Togo,other,1
+613393082,Cameroon,cargo,1
+671675396,Togo,tanker,1
+412993320,China,tanker,1
+626146385,Gabon,tanker,1
+613154165,Cameroon,tanker,1
+637614141,Liberia,tanker,1
+636460289,Liberia,tanker,1
+368734885,USA,tanker,1
+511226437,Palau,container,1
+354505520,Panama,tanker,1
+671829033,Togo,tanker,1
+338533621,USA,cargo,1
+538199726,Marshall Islands,tanker,1
+211180653,Germany,tanker,1
+367628774,USA,tanker,1
+616774925,Comoros,tanker,1
+613467255,Cameroon,tanker,1
+257415549,Norway,tanker,1
+234545004,UK,tanker,1
+626477296,Gabon,tanker,1
+356969064,Panama,tanker,1
+671086376,Togo,tanker,1
+616719410,Comoros,tanker,1
+355401513,Panama,tanker,1
+538682758,Marshall Islands,tanker,1
+257475133,Norway,tanker,1
+538117774,Marshall Islands,tanker,1
+352969258,Panama,tanker,1
+626863652,Gabon,cargo,1
+511273388,Palau,tanker,1
+674480706,Tanzania,tanker,1
+636125581,Liberia,tanker,1
+441850380,South Korea,tanker,1
+351489487,Panama,tanker,1
+353996614,Panama,tanker,1
+637177303,Liberia,cargo,1
+259693493,Norway,tanker,1
+538787149,Marshall Islands,tanker,1
+239270687,Greece,cargo,1
+352994909,Panama,tanker,1
+538710362,Marshall Islands,tanker,1
+637029373,Liberia,tanker,1
+671866387,Togo,tanker,1
+671532306,Togo,tanker,1
+616398914,Comoros,cargo,1
+674898789,Tanzania,tanker,1
+511118716,Palau,tanker,1
+626384766,Gabon,tanker,1
+616877830,Comoros,tanker,1
+626657456,Gabon,tanker,1
+674345638,Tanzania,tanker,1
+511146723,Palau,tanker,1
+511833665,Palau,tanker,1
+674401239,Tanzania,tanker,1
+538187982,Marshall Islands,tanker,1
+369109240,USA,tanker,1
+511592465,Palau,tanker,1
+355338471,Panama,tanker,1
+637141011,Liberia,tanker,1
+511922322,Palau,tanker,1
+613032417,Cameroon,tanker,1
+674355850,Tanzania,tanker,1
+564902850,Singapore,tanker,1
+538856165,Marshall Islands,tanker,1
+538555262,Marshall Islands,tanker,1
+674822547,Tanzania,tanker,1
+354158786,Panama,tanker,1
+674835202,Tanzania,tanker,1
+626698266,Gabon,tanker,1
+626421056,Gabon,tanker,1
+538454805,Marshall Islands,tanker,1
+613463380,Cameroon,tanker,1
+671622071,Togo,tanker,1
+538307549,Marshall Islands,container,1
+613381069,Cameroon,tanker,1
+511666350,Palau,tanker,1
+626146694,Gabon,tanker,1
+671980838,Togo,tanker,1
+511150146,Palau,cargo,1
+211797901,Germany,tanker,1
+626485779,Gabon,fishing,1
+626818187,Gabon,tanker,1
+636304212,Liberia,other,1
+257272844,Norway,tanker,1
+565543835,Singapore,tanker,1
+352508722,Panama,tanker,1
+352818768,Panama,tanker,1
+613983472,Cameroon,tanker,1
+257400118,Norway,tanker,1
+674018011,Tanzania,tanker,1
+355854128,Panama,tanker,1
+613061619,Cameroon,tanker,1
+355315571,Panama,tanker,1
+674929010,Tanzania,tanker,1
+613422954,Cameroon,tanker,1
+511840205,Palau,tanker,1
+613235290,Cameroon,tanker,1
+538637222,Marshall Islands,tanker,1
+538811461,Marshall Islands,tanker,1
+538666377,Marshall Islands,cargo,1
+412713928,China,tanker,1
+613203916,Cameroon,tanker,1
+538886667,Marshall Islands,tanker,1
+564453747,Singapore,other,1
+613939400,Cameroon,tanker,1
+616107071,Comoros,tanker,1
+431181547,Japan,tanker,1
+357499054,Panama,tanker,1
+511863302,Palau,tanker,1
+511733659,Palau,tanker,1
+538315444,Marshall Islands,tanker,1
+626561841,Gabon,tanker,1
+414498824,China,tanker,1
+613084596,Cameroon,tanker,1
+636502969,Liberia,tanker,1
+237443329,Greece,cargo,1
+671472084,Togo,tanker,1
+636810184,Liberia,tanker,1
+355580003,Panama,tanker,1
+616403762,Comoros,tanker,1
+240752923,Greece,cargo,1
+369996117,USA,tanker,1
+613982948,Cameroon,tanker,1
+511064803,Palau,tanker,1
+259811605,Norway,tanker,1
+626692237,Gabon,tanker,1
+674887524,Tanzania,tanker,1
+432448783,Japan,tanker,1
+626758990,Gabon,tanker,1
+674994754,Tanzania,tanker,1
+241347284,Greece,tanker,1
+674453169,Tanzania,tanker,1
+511642235,Palau,tanker,1
+538937826,Marshall Islands,tanker,1
+637457183,Liberia,tanker,1
+218211993,Germany,tanker,1
+636136074,Liberia,tanker,1
+441132100,South Korea,tanker,1
+232246124,UK,tanker,1
+258591043,Norway,cargo,1
+637566472,Liberia,tanker,1
+351491945,Panama,tanker,1
+613631583,Cameroon,cargo,1
+616968888,Comoros,tanker,1
+538063712,Marshall Islands,tanker,1
+538697740,Marshall Islands,tanker,1
+616173772,Comoros,tanker,1
+674769787,Tanzania,tanker,1
+613510097,Cameroon,tanker,1
+616704987,Comoros,fishing,1
+616064029,Comoros,tanker,1
+232380064,UK,tanker,1
+616903255,Comoros,tanker,1
+338065857,USA,tanker,1
+674210467,Tanzania,tanker,1
+357243092,Panama,tanker,1
+538005202,Marshall Islands,other,1
+538545141,Marshall Islands,tanker,1
+538812197,Marshall Islands,tanker,1
+511050792,Palau,cargo,1
+219811348,Denmark,tanker,1
+636431159,Liberia,tanker,1
+616566782,Comoros,tanker,1
+616342614,Comoros,tanker,1
+414966721,China,tanker,1
+357883562,Panama,tanker,1
+220737282,Denmark,tanker,1
+674192318,Tanzania,tanker,1
+616513047,Comoros,tanker,1
+637713418,Liberia,tanker,1
+412200460,China,cargo,1
+613236666,Cameroon,cargo,1
+354241973,Panama,tanker,1
+441273760,South Korea,tanker,1
+257376596,Norway,tanker,1
+616157957,Comoros,tanker,1
+412889277,China,tanker,1
+674803236,Tanzania,tanker,1
+511349860,Palau,tanker,1
+564085233,Singapore,bulk_carrier,1
+511454701,Palau,tanker,1
+671734147,Togo,tanker,1
+511901348,Palau,tanker,1
+511411168,Palau,tanker,1
+613867485,Cameroon,tanker,1
+626340134,Gabon,tanker,1
+637056855,Liberia,cargo,1
+626910952,Gabon,tanker,1
+674307090,Tanzania,tanker,1
+616416104,Comoros,tanker,1
+538803728,Marshall Islands,tanker,1
+538559966,Marshall Islands,tanker,1
+538482303,Marshall Islands,tanker,1
+258538305,Norway,tanker,1
+353562056,Panama,tanker,1
+616728337,Comoros,tanker,1
+538155791,Marshall Islands,tanker,1
+538624830,Marshall Islands,tanker,1
+368487716,USA,tanker,1
+538317651,Marshall Islands,tanker,1
+671934407,Togo,tanker,1
+234607745,UK,tanker,1
+626912026,Gabon,passenger,1
+511907132,Palau,tanker,1
+626523939,Gabon,tanker,1
+538103721,Marshall Islands,tanker,1
+538893003,Marshall Islands,tanker,1
+616046655,Comoros,tanker,1
+616124590,Comoros,tanker,1
+671086430,Togo,bulk_carrier,1
+674727646,Tanzania,tanker,1
+616221118,Comoros,tanker,1
+219375768,Denmark,tanker,1
+538888963,Marshall Islands,tanker,1
+613707889,Cameroon,tanker,1
+613671754,Cameroon,tanker,1
+613259130,Cameroon,tanker,1
+671266607,Togo,cargo,1
+674227945,Tanzania,tanker,1
+511879797,Palau,cargo,1
+412864704,China,tanker,1
+538923317,Marshall Islands,tanker,1
+626258155,Gabon,tanker,1
+616289258,Comoros,tanker,1
+351769095,Panama,tanker,1
+538158000,Marshall Islands,tanker,1
+616925771,Comoros,tanker,1
+367737095,USA,tanker,1
+626881020,Gabon,tanker,1
+232377289,UK,tanker,1
+354595983,Panama,tanker,1
+538502669,Marshall Islands,tanker,1
+671415156,Togo,tanker,1
+432160140,Japan,tanker,1
+239334542,Greece,fishing,1
+671401033,Togo,tanker,1
+674418002,Tanzania,tanker,1
+368593407,USA,tanker,1
+613527348,Cameroon,other,1
+432828378,Japan,tanker,1
+636211933,Liberia,tanker,1
+511960264,Palau,tanker,1
+674382858,Tanzania,tanker,1
+357513419,Panama,tanker,1
+671785853,Togo,tanker,1
+616360295,Comoros,tanker,1
+674848843,Tanzania,tanker,1
+671403465,Togo,tanker,1
+637437274,Liberia,cargo,1
+353737362,Panama,tanker,1
+626981738,Gabon,bulk_carrier,1
+671534154,Togo,bulk_carrier,1
+674614540,Tanzania,tanker,1
+637831031,Liberia,fishing,1
+511284363,Palau,tanker,1
+613633156,Cameroon,tanker,1
+354373961,Panama,cargo,1
+353338059,Panama,tanker,1
+351813655,Panama,tanker,1
+511880968,Palau,tanker,1
+616411571,Comoros,tanker,1
+538381799,Marshall Islands,tanker,1
+538765793,Marshall Islands,tanker,1
+220124768,Denmark,tanker,1
+257879665,Norway,tanker,1
+616560343,Comoros,tanker,1
+219895207,Denmark,tanker,1
+626396328,Gabon,cargo,1
+674727033,Tanzania,tanker,1
+626007171,Gabon,bulk_carrier,1
+671135811,Togo,tanker,1
+613566966,Cameroon,tanker,1
+636761894,Liberia,tanker,1
+674771132,Tanzania,tanker,1
+613335188,Cameroon,fishing,1
+636704399,Liberia,tanker,1
+413126452,China,cargo,1
+626399169,Gabon,tanker,1
+511426820,Palau,tanker,1
+616452310,Comoros,tanker,1
+351483872,Panama,tanker,1
+637778384,Liberia,tanker,1
+636999420,Liberia,tanker,1
+674610099,Tanzania,tanker,1
+626369205,Gabon,tanker,1
+636042922,Liberia,tanker,1
+259843636,Norway,tanker,1
+671137525,Togo,tanker,1
+671552872,Togo,tanker,1
+616384218,Comoros,tanker,1
+511112641,Palau,tanker,1
+616359998,Comoros,tanker,1
+674044904,Tanzania,tanker,1
+414887717,China,tanker,1
+355434526,Panama,tanker,1
+412557688,China,tanker,1
+637059593,Liberia,tanker,1
+352531983,Panama,tanker,1
+613044234,Cameroon,cargo,1
+258173207,Norway,tanker,1
+636194927,Liberia,tanker,1
+671375564,Togo,tanker,1
+353495673,Panama,tanker,1
+671167530,Togo,tanker,1
+357469360,Panama,tanker,1
+671121125,Togo,tanker,1
+674617023,Tanzania,tanker,1
+218381122,Germany,bulk_carrier,1
+538945934,Marshall Islands,tanker,1
+511385662,Palau,tanker,1
+257536828,Norway,cargo,1
+354029890,Panama,tanker,1
+240196023,Greece,tanker,1
+211708312,Germany,tanker,1
+613593016,Cameroon,tanker,1
+671699808,Togo,tanker,1
+511754450,Palau,passenger,1
+671480967,Togo,tanker,1
+565070634,Singapore,tanker,1
+511617985,Palau,tanker,1
+538943019,Marshall Islands,cargo,1
+564579865,Singapore,tanker,1
+674955430,Tanzania,cargo,1
+356602403,Panama,tanker,1
+414245904,China,tanker,1
+636145741,Liberia,tanker,1
+671647743,Togo,tanker,1
+431796434,Japan,tanker,1
+432593966,Japan,tanker,1
+616874366,Comoros,tanker,1
+613549232,Cameroon,tanker,1
+431259105,Japan,tanker,1
+616511645,Comoros,tanker,1
+613742222,Cameroon,tanker,1
+441444158,South Korea,tanker,1
+219913296,Denmark,tanker,1
+636620853,Liberia,tanker,1
+354557458,Panama,cargo,1
+354860258,Panama,cargo,1
+235940951,UK,tanker,1
+674379726,Tanzania,tanker,1
+538132996,Marshall Islands,tanker,1
+616936844,Comoros,cargo,1
+636722459,Liberia,tanker,1
+538986592,Marshall Islands,tanker,1
+674486170,Tanzania,cargo,1
+538916883,Marshall Islands,tanker,1
+511763299,Palau,tanker,1
+355285530,Panama,tanker,1
+511766593,Palau,tanker,1
+671741485,Togo,container,1
+636636432,Liberia,tanker,1
+538984270,Marshall Islands,tanker,1
+637924207,Liberia,tanker,1
+671402773,Togo,tanker,1
+637680618,Liberia,tanker,1
+511918566,Palau,tanker,1
+674045910,Tanzania,tanker,1
+211240137,Germany,tanker,1
+616322746,Comoros,tanker,1
+616193764,Comoros,tanker,1
+626337679,Gabon,tanker,1
+613698051,Cameroon,passenger,1
+613489979,Cameroon,cargo,1
+413566388,China,tanker,1
+538174202,Marshall Islands,tanker,1
+616712603,Comoros,tanker,1
+355917306,Panama,tanker,1
+616904824,Comoros,tanker,1
+219068863,Denmark,tanker,1
+414122268,China,tanker,1
+616588030,Comoros,tanker,1
+616027688,Comoros,bulk_carrier,1
+674631849,Tanzania,fishing,1
+674969864,Tanzania,tanker,1
+674385013,Tanzania,tanker,1
+626995089,Gabon,tanker,1
+538452848,Marshall Islands,tanker,1
+355132052,Panama,tanker,1
+626661522,Gabon,tanker,1
+671738739,Togo,tanker,1
+637834078,Liberia,tanker,1
+637510458,Liberia,tanker,1
+616729254,Comoros,tanker,1
+218779050,Germany,tanker,1
+232612156,UK,bulk_carrier,1
+616448129,Comoros,tanker,1
+613479047,Cameroon,tanker,1
+258266306,Norway,tanker,1
+232154211,UK,tanker,1
+413008408,China,tanker,1
+511714707,Palau,tanker,1
+671816365,Togo,tanker,1
+538917925,Marshall Islands,tanker,1
+613395978,Cameroon,bulk_carrier,1
+637626949,Liberia,cargo,1
+218204350,Germany,tanker,1
+353232637,Panama,tanker,1
+626188055,Gabon,tanker,1
+432392862,Japan,tanker,1
+626512329,Gabon,tanker,1
+414213897,China,tanker,1
+616986625,Comoros,tanker,1
+671785205,Togo,cargo,1
+613464816,Cameroon,cargo,1
+369157672,USA,tanker,1
+637827593,Liberia,tanker,1
+674629741,Tanzania,tanker,1
+671007815,Togo,tanker,1
+671733192,Togo,tanker,1
+538094612,Marshall Islands,tanker,1
+671801993,Togo,tanker,1
+511091923,Palau,bulk_carrier,1
+674043005,Tanzania,tanker,1
+412672576,China,tanker,1
+538007849,Marshall Islands,tanker,1
+219678384,Denmark,tanker,1
+671263848,Togo,cargo,1
+616054315,Comoros,tanker,1
+613903729,Cameroon,bulk_carrier,1
+616467486,Comoros,tanker,1
+671713925,Togo,tanker,1
+511466319,Palau,cargo,1
+636925539,Liberia,cargo,1
+671005907,Togo,cargo,1
+671056874,Togo,tanker,1
+616512262,Comoros,tanker,1
+674412536,Tanzania,tanker,1
+538671100,Marshall Islands,cargo,1
+259155671,Norway,tanker,1
+616817944,Comoros,tanker,1
+303375331,USA,tanker,1
+674426552,Tanzania,tanker,1
+616641521,Comoros,tanker,1
+637355455,Liberia,tanker,1
+355400565,Panama,tanker,1
+613561655,Cameroon,bulk_carrier,1
+674278866,Tanzania,tanker,1
+626220286,Gabon,cargo,1
+671220856,Togo,container,1
+511752595,Palau,tanker,1
+233687672,UK,tanker,1
+613776303,Cameroon,tanker,1
+636662137,Liberia,bulk_carrier,1
+538951503,Marshall Islands,cargo,1
+671094656,Togo,tanker,1
+353056573,Panama,tanker,1
+674012325,Tanzania,tanker,1
+440081587,South Korea,tanker,1
+235027173,UK,bulk_carrier,1
+432665011,Japan,tanker,1
+671877185,Togo,tanker,1
+626229583,Gabon,tanker,1
+432305692,Japan,tanker,1
+636379443,Liberia,tanker,1
+637772564,Liberia,tanker,1
+355281297,Panama,tanker,1
+636399835,Liberia,tanker,1
+511763636,Palau,tanker,1
+674136874,Tanzania,cargo,1
+538981254,Marshall Islands,tanker,1
+674617367,Tanzania,tanker,1
+219560622,Denmark,tanker,1
+626353058,Gabon,tanker,1
+626496055,Gabon,cargo,1
+353796866,Panama,tanker,1
+613223946,Cameroon,tanker,1
+626281211,Gabon,tanker,1
+616967536,Comoros,tanker,1
+240116663,Greece,tanker,1
+431882535,Japan,tanker,1
+354627305,Panama,tanker,1
+431132393,Japan,tanker,1
+355336989,Panama,tanker,1
+636640584,Liberia,tanker,1
+414804644,China,tanker,1
+257036941,Norway,tanker,1
+538687661,Marshall Islands,tanker,1
+239271477,Greece,tanker,1
+538531060,Marshall Islands,tanker,1
