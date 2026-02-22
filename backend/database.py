@@ -18,6 +18,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")   # service role key (backend only)
 
 _DB_ENABLED = bool(SUPABASE_URL and SUPABASE_KEY)
+_disabled_tables: set[str] = set()   # tables that returned 404 — skip silently after first error
 
 if not _DB_ENABLED:
     print("[DB] Supabase not configured — persistence disabled. Set SUPABASE_URL + SUPABASE_SERVICE_KEY to enable.")
@@ -34,13 +35,16 @@ def _headers() -> dict:
 
 async def _insert(table: str, rows: list[dict]) -> None:
     """Fire-and-forget POST to PostgREST."""
-    if not _DB_ENABLED or not rows:
+    if not _DB_ENABLED or not rows or table in _disabled_tables:
         return
     url = f"{SUPABASE_URL}/rest/v1/{table}"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(url, headers=_headers(), json=rows)
-            if resp.status_code >= 400:
+            if resp.status_code == 404:
+                _disabled_tables.add(table)
+                print(f"[DB] Table '{table}' not found — disabling writes for this session. Create it in Supabase to enable persistence.")
+            elif resp.status_code >= 400:
                 print(f"[DB] {table} insert error {resp.status_code}: {resp.text[:200]}")
     except Exception as e:
         print(f"[DB] {table} request failed: {e}")
@@ -48,14 +52,17 @@ async def _insert(table: str, rows: list[dict]) -> None:
 
 async def _upsert(table: str, rows: list[dict], on_conflict: str = "id") -> None:
     """Upsert (insert or update) rows."""
-    if not _DB_ENABLED or not rows:
+    if not _DB_ENABLED or not rows or table in _disabled_tables:
         return
     url = f"{SUPABASE_URL}/rest/v1/{table}"
     headers = {**_headers(), "Prefer": f"resolution=merge-duplicates,return=minimal"}
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(url, headers=headers, json=rows)
-            if resp.status_code >= 400:
+            if resp.status_code == 404:
+                _disabled_tables.add(table)
+                print(f"[DB] Table '{table}' not found — disabling writes for this session.")
+            elif resp.status_code >= 400:
                 print(f"[DB] {table} upsert error {resp.status_code}: {resp.text[:200]}")
     except Exception as e:
         print(f"[DB] {table} upsert failed: {e}")

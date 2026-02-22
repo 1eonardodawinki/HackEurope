@@ -1,22 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-const TYPE_LABELS = {
-  ais_dropout: 'AIS DROPOUT',
-  ship_proximity: 'PROXIMITY',
+const STATUS_COLORS = {
+  active:     'var(--green)',
+  dark:       'var(--danger)',
+  suspicious: 'var(--warning)',
 }
 
-const SEVERITY_COLORS = {
-  high: 'var(--danger)',
-  medium: 'var(--warning)',
-  low: 'var(--text3)',
-}
-
-const TAB_LABELS = { incidents: 'INC', regions: 'ZONES', agents: 'AGENTS', log: 'LOG' }
+const TAB_LABELS = { vessel: 'VESSEL', agents: 'AGENTS', log: 'LOG' }
 
 export default function IncidentPanel({
-  incidents, thresholds, agentStatus, hotzones, logs, onOpenReport, hasReport
+  investigatedVessel, investigating, agentStatus, logs, onOpenReport, hasReport
 }) {
-  const [activeTab, setActiveTab] = useState('incidents')
+  const [activeTab, setActiveTab] = useState('vessel')
+
+  // Switch to VESSEL tab when a new investigation target is set
+  useEffect(() => {
+    if (investigatedVessel) setActiveTab('vessel')
+  }, [investigatedVessel?.mmsi])
+
+  // Switch to AGENTS tab when the pipeline becomes active
+  useEffect(() => {
+    if (agentStatus.stage !== 'idle' && agentStatus.stage !== 'critic_result') {
+      setActiveTab('agents')
+    }
+  }, [agentStatus.stage])
 
   return (
     <div style={styles.panel}>
@@ -31,12 +38,9 @@ export default function IncidentPanel({
         ))}
       </div>
 
-      {activeTab === 'incidents' && <IncidentsTab incidents={incidents} />}
-      {activeTab === 'regions' && (
-        <RegionsTab hotzones={hotzones} thresholds={thresholds} onOpenReport={onOpenReport} hasReport={hasReport} />
-      )}
+      {activeTab === 'vessel'  && <VesselTab investigatedVessel={investigatedVessel} investigating={investigating} />}
       {activeTab === 'agents' && <AgentsTab agentStatus={agentStatus} />}
-      {activeTab === 'log' && <LogTab logs={logs || []} onOpenReport={onOpenReport} hasReport={hasReport} />}
+      {activeTab === 'log'    && <LogTab logs={logs || []} onOpenReport={onOpenReport} hasReport={hasReport} />}
 
       {hasReport && (
         <button style={styles.reportCta} onClick={onOpenReport}>
@@ -47,8 +51,8 @@ export default function IncidentPanel({
   )
 }
 
-function IncidentsTab({ incidents }) {
-  if (incidents.length === 0) {
+function VesselTab({ investigatedVessel, investigating }) {
+  if (!investigatedVessel) {
     return (
       <div style={styles.empty}>
         <div style={styles.emptyIcon}>
@@ -58,134 +62,81 @@ function IncidentsTab({ incidents }) {
             <circle cx="14" cy="14" r="2" fill="rgba(255,255,255,0.15)"/>
           </svg>
         </div>
-        <div style={{ color: 'var(--text3)', fontSize: 11, letterSpacing: 1 }}>MONITORING</div>
+        <div style={{ color: 'var(--text3)', fontSize: 11, letterSpacing: 1 }}>NO ACTIVE INVESTIGATION</div>
+        <div style={{ color: 'var(--text3)', fontSize: 9, letterSpacing: 0.5, marginTop: 6, opacity: 0.6, textAlign: 'center', lineHeight: 1.7 }}>
+          Enter an MMSI number above<br/>to investigate a vessel
+        </div>
       </div>
     )
   }
 
+  const isDark = investigatedVessel.status === 'dark'
+  const isSuspicious = investigatedVessel.status === 'suspicious'
+  const statusColor = STATUS_COLORS[investigatedVessel.status] || 'var(--text3)'
+
   return (
     <div style={styles.scrollArea}>
-      {incidents.map((inc, i) => (
-        <div key={inc.id} className="animate-sweep-in"
-          style={{ ...styles.card, animationDelay: `${i * 20}ms` }}>
+      {isDark && (
+        <div style={{ ...styles.alertBanner, marginBottom: 6 }}>
+          DARK VESSEL — AIS SIGNAL LOST
+        </div>
+      )}
+      {isSuspicious && (
+        <div style={{ ...styles.alertBanner, borderColor: 'rgba(255,149,0,0.3)', color: 'var(--warning)', marginBottom: 6 }}>
+          SUSPICIOUS BEHAVIOUR DETECTED
+        </div>
+      )}
 
-          <div style={styles.cardHeader}>
-            <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 2,
-              color: SEVERITY_COLORS[inc.severity] || 'var(--warning)' }}>
-              {TYPE_LABELS[inc.type] || inc.type}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 2, color: statusColor }}>
+            {(investigatedVessel.status || 'UNKNOWN').toUpperCase()} VESSEL
+          </span>
+          {investigating && (
+            <span style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: 1.5, animation: 'pulse-dot 2s infinite' }}>
+              INVESTIGATING
             </span>
-            <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 0.5 }}>
-              {new Date(inc.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-          </div>
-
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 8, lineHeight: 1.3 }}>
-            {inc.ship_name || `MMSI ${inc.mmsi}`}
-          </div>
-
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
-            <MetaItem label="Region" value={inc.region} />
-            {inc.duration_minutes > 0 && <MetaItem label="Duration" value={`${inc.duration_minutes}m`} />}
-            {inc.confidence_score && (
-              <MetaItem label="Confidence" value={`${inc.confidence_score}%`} color="var(--accent)" />
-            )}
-          </div>
-
-          {inc.commodities_affected?.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-              {inc.commodities_affected.map(c => (
-                <span key={c} style={styles.tag}>{c}</span>
-              ))}
-            </div>
-          )}
-
-          {inc.confidence_score && (
-            <div style={styles.bar}>
-              <div style={{
-                ...styles.barFill,
-                width: `${inc.confidence_score}%`,
-                background: inc.confidence_score >= 70 ? 'var(--danger)' :
-                  inc.confidence_score >= 45 ? 'var(--warning)' : 'var(--text3)',
-              }} />
-            </div>
           )}
         </div>
-      ))}
-    </div>
-  )
-}
 
-function RegionsTab({ hotzones, thresholds, onOpenReport, hasReport }) {
-  return (
-    <div style={styles.scrollArea}>
-      {Object.entries(hotzones).map(([name, hz]) => {
-        const t = thresholds[name]
-        const count = t?.incident_count || 0
-        const threshold = t?.threshold || 3
-        const pct = Math.min((count / threshold) * 100, 100)
-        const conf = t?.avg_confidence || 0
-        const exceeded = count >= threshold
+        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text)', margin: '8px 0 12px', lineHeight: 1.3 }}>
+          {investigatedVessel.name || 'Unknown Vessel'}
+        </div>
 
-        return (
-          <div key={name} style={styles.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8, height: 8, background: hz.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', letterSpacing: 0.3 }}>{name}</span>
-              </div>
-              <span style={{ fontSize: 10, color: exceeded ? 'var(--danger)' : 'var(--text3)' }}>
-                {count}/{threshold}
-              </span>
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <MetaRow label="MMSI" value={investigatedVessel.mmsi} />
+          {investigatedVessel.notFound ? (
+            <MetaRow label="AIS STATUS" value="NOT IN CURRENT FEED" color="var(--text3)" />
+          ) : (
+            <>
+              {investigatedVessel.lat != null && (
+                <MetaRow label="POSITION" value={`${investigatedVessel.lat.toFixed(3)}°N, ${investigatedVessel.lon.toFixed(3)}°E`} />
+              )}
+              {investigatedVessel.in_hotzone && (
+                <MetaRow label="HOTZONE" value={investigatedVessel.in_hotzone} color="var(--warning)" />
+              )}
+              {investigatedVessel.sog != null && (
+                <MetaRow label="SPEED" value={`${investigatedVessel.sog} kn`} />
+              )}
+              {investigatedVessel.cog != null && (
+                <MetaRow label="COURSE" value={`${investigatedVessel.cog}°`} />
+              )}
+              {investigatedVessel.type && (
+                <MetaRow label="TYPE" value={investigatedVessel.type.toUpperCase()} />
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
-            <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 12, lineHeight: 1.6 }}>
-              {hz.description}
-            </div>
-
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5 }}>THREAT THRESHOLD</span>
-                <span style={{ fontSize: 9, color: exceeded ? 'var(--danger)' : 'var(--text3)' }}>
-                  {exceeded ? 'EXCEEDED' : `${threshold - count} remaining`}
-                </span>
-              </div>
-              <div style={styles.bar}>
-                <div style={{
-                  ...styles.barFill,
-                  width: `${pct}%`,
-                  background: pct >= 100 ? 'var(--danger)' : pct >= 60 ? 'var(--warning)' : 'var(--text3)',
-                }} />
-              </div>
-            </div>
-
-            {conf > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5 }}>AVG CONFIDENCE</span>
-                <span style={{ fontSize: 10, color: conf >= 70 ? 'var(--danger)' : 'var(--warning)' }}>
-                  {conf.toFixed(0)}%
-                </span>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {hz.commodities.map(c => (
-                <span key={c} style={styles.tag}>{c}</span>
-              ))}
-            </div>
-
-            {exceeded && (
-              <div style={styles.alertBanner}>
-                INTELLIGENCE THRESHOLD EXCEEDED
-              </div>
-            )}
+      {investigating && (
+        <div style={{ ...styles.card, borderColor: 'rgba(0,229,255,0.18)', background: 'rgba(0,229,255,0.03)' }}>
+          <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: 1.5, marginBottom: 8 }}>PIPELINE ACTIVE</div>
+          <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.7 }}>
+            News · Sanctions · Geopolitical agents are gathering intelligence on this vessel in parallel.
+            Switch to the AGENTS tab to monitor progress.
           </div>
-        )
-      })}
-
-      {hasReport && (
-        <button style={styles.viewReportBtn} onClick={onOpenReport}>
-          VIEW FULL INTELLIGENCE REPORT
-        </button>
+        </div>
       )}
     </div>
   )
@@ -196,15 +147,14 @@ function AgentsTab({ agentStatus }) {
     { id: 'news_agent',         label: 'News Agent',        desc: 'Searches vessel news, incidents & AIS anomalies' },
     { id: 'sanctions_agent',    label: 'Sanctions Agent',   desc: 'Checks OFAC / EU / UN sanctions exposure' },
     { id: 'geopolitical_agent', label: 'Geopolitical Agent',desc: 'Assesses regional threat & state-actor context' },
-    { id: 'evaluator',          label: 'Evaluator',         desc: 'Scores AIS incidents (incident-flow only)' },
-    { id: 'reporter',           label: 'Reporter',          desc: 'Generates structured intelligence report' },
+    { id: 'reporter',           label: 'Reporter',          desc: 'Synthesises findings into an intelligence report' },
     { id: 'critic',             label: 'Critic',            desc: 'Adversarial review — exits early when approved' },
   ]
 
   return (
     <div style={styles.scrollArea}>
       <div style={{ fontSize: 10, color: 'var(--text3)', letterSpacing: 0.5, marginBottom: 16, lineHeight: 1.6 }}>
-        Multi-agent pipeline — Claude Opus 4.6
+        Multi-agent pipeline — Claude Sonnet 4.6 / Haiku 4.5
       </div>
 
       {stages.map(stage => {
@@ -241,7 +191,7 @@ function AgentsTab({ agentStatus }) {
             )}
             {isActive && agentStatus.round && (
               <div style={{ marginTop: 4, fontSize: 9, color: 'var(--text3)', letterSpacing: 1 }}>
-                ROUND {agentStatus.round} / {agentStatus.max_rounds || 3}
+                ROUND {agentStatus.round} / {agentStatus.max_rounds || 1}
               </div>
             )}
           </div>
@@ -253,11 +203,8 @@ function AgentsTab({ agentStatus }) {
         <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 2 }}>
           <span style={{ color: 'var(--accent)' }}>MMSI INVESTIGATION</span><br/>
           News · Sanctions · Geo agents run in parallel<br/>
-          → Reporter synthesises findings → Critic reviews<br/>
-          <br/>
-          <span style={{ color: 'var(--text3)' }}>AIS INCIDENT FLOW</span><br/>
-          Evaluator scores incidents → Reporter at threshold<br/>
-          → Critic reviews (exits early when approved)
+          → Reporter (Sonnet) synthesises findings<br/>
+          → Critic (Haiku) reviews — exits early if approved
         </div>
       </div>
     </div>
@@ -341,11 +288,12 @@ function LogTab({ logs, onOpenReport, hasReport }) {
   )
 }
 
-function MetaItem({ label, value, color }) {
+function MetaRow({ label, value, color }) {
   return (
-    <span style={{ fontSize: 10, color: 'var(--text3)' }}>
-      {label}: <span style={{ color: color || 'var(--text2)' }}>{value}</span>
-    </span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1.5 }}>{label}</span>
+      <span style={{ fontSize: 10, color: color || 'var(--text2)', letterSpacing: 0.3 }}>{value}</span>
+    </div>
   )
 }
 
@@ -383,20 +331,8 @@ const styles = {
   cardHeader: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
-  tag: {
-    fontSize: 9, padding: '2px 7px',
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    color: 'var(--text3)', letterSpacing: 0.5,
-  },
-  bar: {
-    height: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%', transition: 'width 0.6s ease',
-  },
   alertBanner: {
-    marginTop: 10, padding: '6px 10px',
+    padding: '6px 10px',
     border: '1px solid rgba(255,51,85,0.3)',
     fontSize: 9, color: 'var(--danger)', letterSpacing: 2,
     animation: 'blink 2s infinite',

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import Map from './components/Map.jsx'
 import IncidentPanel from './components/IncidentPanel.jsx'
 import ReportModal from './components/ReportModal.jsx'
@@ -7,9 +7,7 @@ import { useWebSocket } from './hooks/useWebSocket.js'
 export default function App() {
   const [ships, setShips] = useState([])
   const [hotzones, setHotzones] = useState({})
-  const [incidents, setIncidents] = useState([])
   const [agentStatus, setAgentStatus] = useState({ stage: 'idle', message: 'Connecting...' })
-  const [thresholds, setThresholds] = useState({})
   const [report, setReport] = useState(null)
   const [showReport, setShowReport] = useState(false)
   const [connected, setConnected] = useState(false)
@@ -21,23 +19,17 @@ export default function App() {
   const [zoneOverrides, setZoneOverrides] = useState({})
   const [mmsiInput, setMmsiInput] = useState('')
   const [investigating, setInvestigating] = useState(false)
+  const [investigatedVessel, setInvestigatedVessel] = useState(null)
 
   const handleZoneChange = useCallback((name, geo) => {
     setZoneOverrides(prev => ({ ...prev, [name]: geo }))
   }, [])
 
   const [logs, setLogs] = useState([])
-  const incidentIds = useRef(new Set())
 
   const addLog = useCallback((entry) => {
     const ts = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     setLogs(prev => [{ ...entry, ts }, ...prev].slice(0, 300))
-  }, [])
-
-  const addIncident = useCallback((incident) => {
-    if (incidentIds.current.has(incident.id)) return
-    incidentIds.current.add(incident.id)
-    setIncidents(prev => [incident, ...prev].slice(0, 50))
   }, [])
 
   useWebSocket({
@@ -49,37 +41,21 @@ export default function App() {
       setDemoMode(!!data.demo_mode)
       setHasLiveKey(!!data.has_live_key)
       setModeSwitching(false)
-      // Clear dedup set so backend-restarted incidents aren't blocked.
-      // Do NOT clear incidents/evaluations — those are cleared by onModeChange only.
-      incidentIds.current.clear()
     },
     onModeChange: (data) => {
       setDemoMode(!!data.demo_mode)
       setHasLiveKey(!!data.has_live_key)
       setModeSwitching(false)
       setShips([])
-      setIncidents([])
-      setThresholds({})
       setReport(null)
       setShowReport(false)
       setAgentStatus({ stage: 'idle', message: 'Monitoring...' })
       setLogs([])
-      incidentIds.current.clear()
+      setInvestigatedVessel(null)
+      setInvestigating(false)
       addLog({ kind: 'system', text: `Switched to ${data.demo_mode ? 'DEMO' : 'LIVE'} mode` })
     },
     onShips: (data) => setShips(data),
-    onIncident: (data) => {
-      addIncident(data)
-      addLog({ kind: 'incident', text: `${data.type === 'ais_dropout' ? 'AIS DROPOUT' : 'PROXIMITY'} — ${data.ship_name || `MMSI ${data.mmsi}`} [${data.region}]`, severity: data.severity })
-    },
-    onEvaluation: (data) => {
-      setIncidents(prev => prev.map(inc =>
-        inc.id === data.incident_id
-          ? { ...inc, confidence_score: data.confidence_score, incident_type: data.incident_type, commodities_affected: data.commodities_affected }
-          : inc
-      ))
-      addLog({ kind: 'eval', text: `Evaluator: ${data.incident_type || 'unknown'} — ${data.confidence_score}% confidence [${data.region}]` })
-    },
     onAgentStatus: (data) => {
       setAgentStatus(data)
       if (data.stage === 'error') {
@@ -90,10 +66,11 @@ export default function App() {
         addLog({ kind: 'agent', text: data.message || data.stage, stage: data.stage, round: data.round })
       }
     },
-    onThresholdUpdate: (data) => {
-      setThresholds(prev => ({ ...prev, [data.region]: data }))
-      if (data.incident_count >= data.threshold) {
-        addLog({ kind: 'threshold', text: `Threshold reached: ${data.incident_count}/${data.threshold} incidents in ${data.region} — launching reporter` })
+    onInvestigationStart: (data) => {
+      // Backend confirmed vessel location — update map highlight with latest AIS data
+      if (data.vessel) {
+        setSelectedShip(data.vessel)
+        setInvestigatedVessel(data.vessel)
       }
     },
     onReport: (data) => {
@@ -108,6 +85,16 @@ export default function App() {
     const mmsi = mmsiInput.trim()
     if (!mmsi || investigating) return
     setInvestigating(true)
+
+    // Immediately highlight the vessel on the map if it's in the current AIS feed
+    const vessel = ships.find(s => String(s.mmsi) === mmsi)
+    if (vessel) {
+      setSelectedShip(vessel)
+      setInvestigatedVessel(vessel)
+    } else {
+      setInvestigatedVessel({ mmsi, name: 'Unknown Vessel', notFound: true })
+    }
+
     addLog({ kind: 'system', text: `Investigation launched for MMSI ${mmsi}` })
     try {
       await fetch('http://localhost:8000/investigate', {
@@ -117,6 +104,7 @@ export default function App() {
       })
     } catch {
       setInvestigating(false)
+      setInvestigatedVessel(null)
       addLog({ kind: 'error', text: `Failed to reach backend for MMSI ${mmsi}` })
     }
   }
@@ -135,7 +123,6 @@ export default function App() {
     }
   }
 
-  const totalIncidents = incidents.length
   const hotzoneShips = ships.filter(s => s.in_hotzone).length
   const darkShips = ships.filter(s => s.status === 'dark').length
 
@@ -153,7 +140,6 @@ export default function App() {
           <Stat label="VESSELS" value={ships.length} />
           <Stat label="IN ZONE" value={hotzoneShips} color="var(--warning)" />
           <Stat label="DARK" value={darkShips} color="var(--danger)" />
-          <Stat label="INCIDENTS" value={totalIncidents} color={totalIncidents > 0 ? 'var(--danger)' : 'var(--text)'} />
         </div>
 
         <div style={styles.headerRight}>
@@ -194,7 +180,7 @@ export default function App() {
           <Map
             ships={ships}
             hotzones={hotzones}
-            incidents={incidents}
+            incidents={[]}
             selectedShip={selectedShip}
             onSelectShip={setSelectedShip}
             editZones={editZones}
@@ -204,10 +190,9 @@ export default function App() {
         </div>
 
         <IncidentPanel
-          incidents={incidents}
-          thresholds={thresholds}
+          investigatedVessel={investigatedVessel}
+          investigating={investigating}
           agentStatus={agentStatus}
-          hotzones={hotzones}
           logs={logs}
           onOpenReport={() => setShowReport(true)}
           hasReport={!!report}
@@ -236,7 +221,6 @@ function ModeIndicator({ connected, demoMode, hasLiveKey, switching, onSwitch })
   const dotColor = !connected ? 'var(--danger)' : demoMode ? 'var(--danger)' : 'var(--green)'
   const label = !connected ? 'RECONNECTING' : switching ? '...' : demoMode ? 'DEMO' : 'LIVE'
   const labelColor = !connected ? 'var(--danger)' : demoMode ? 'var(--danger)' : 'var(--text2)'
-  // Switching TO demo: always allowed. Switching TO live: only if API key exists.
   const canToggle = connected && !switching && (demoMode ? hasLiveKey : true)
   const toggleTarget = demoMode ? 'LIVE' : 'DEMO'
   const toggleTitle = demoMode && !hasLiveKey
@@ -311,7 +295,6 @@ const styles = {
   headerStats: { display: 'flex', gap: 32 },
   stat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
   headerRight: { display: 'flex', alignItems: 'center', gap: 12 },
-  liveIndicator: { display: 'flex', alignItems: 'center', gap: 7 },
   headerDivider: { width: 1, height: 20, background: 'var(--border)', flexShrink: 0 },
   editZonesBtn: {
     background: 'transparent', border: '1px solid', cursor: 'pointer',

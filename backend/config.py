@@ -57,8 +57,9 @@ INCIDENT_THRESHOLD = 3            # Incidents needed to trigger intel report
 INCIDENT_WINDOW_HOURS = 24        # Time window for threshold
 
 # ── Agent Settings ───────────────────────────────────────────────────────────
-MODEL = "claude-sonnet-4-6"
-MAX_CRITIC_ROUNDS = 3
+MODEL = "claude-sonnet-4-6"        # Reporter (needs synthesis quality)
+FAST_MODEL = "claude-haiku-4-5-20251001"  # Investigation agents + critic (speed)
+MAX_CRITIC_ROUNDS = 1              # 1 round is enough; early-exit already works
 
 # ── Demo Simulation ───────────────────────────────────────────────────────────
 DEMO_SHIP_COUNT = 30
