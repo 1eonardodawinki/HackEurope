@@ -17,7 +17,7 @@ import traceback
 
 import anthropic
 from data_fetchers.news_fetcher import search_recent_news
-from config import MODEL, ANTHROPIC_API_KEY
+from config import FAST_MODEL, ANTHROPIC_API_KEY
 
 client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -67,7 +67,7 @@ async def _run_agent(system_prompt: str, user_prompt: str, label: str) -> dict:
     try:
         for _ in range(4):   # max 4 iterations (user → tool call → result → final)
             response = await client.messages.create(
-                model=MODEL,
+                model=FAST_MODEL,
                 max_tokens=2048,
                 system=system_prompt,
                 tools=[NEWS_TOOL],

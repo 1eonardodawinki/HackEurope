@@ -3,10 +3,12 @@ Reporter Agent — generates a structured intelligence report from aggregated in
 Works in a back-and-forth loop with the Critic Agent until approved.
 """
 
+import asyncio
 import json
+import re
 import traceback
 import anthropic
-from config import MODEL, ANTHROPIC_API_KEY, MAX_CRITIC_ROUNDS
+from config import FAST_MODEL, ANTHROPIC_API_KEY, MAX_CRITIC_ROUNDS
 
 client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -21,7 +23,7 @@ Your role is to generate comprehensive, well-evidenced intelligence reports that
 Be specific. Cite evidence. Quantify predictions (e.g. "+4-7% Brent Crude over 2-3 weeks").
 Your reports will be reviewed by a critic. Write as if publishing to institutional clients.
 
-IMPORTANT: Your final report MUST be valid JSON matching this schema:
+IMPORTANT: Your final report MUST be valid JSON matching this schema. Output ONLY the JSON object — no markdown fences, no preamble:
 {
   "title": "string - concise report title",
   "executive_summary": "string - 2-3 sentence summary",
@@ -168,38 +170,41 @@ def _fallback_report(incidents: list[dict], evaluations: list[dict], error_messa
     }
 
 
-async def _call_reporter(messages: list[dict], progress_callback=None) -> anthropic.types.Message:
-    """Try streaming with thinking + progress, fall back to non-streaming without thinking."""
-    # Attempt 1: streaming with adaptive thinking
-    try:
-        full_text = ""
-        async with client.messages.stream(
-            model=MODEL,
-            max_tokens=8192,
-            thinking={"type": "adaptive"},
-            system=REPORTER_SYSTEM,
-            messages=messages,
-        ) as stream:
-            async for chunk in stream.text_stream:
-                full_text += chunk
-                if progress_callback and len(full_text) % 400 < max(1, len(chunk)):
-                    await progress_callback({
-                        "stage": "reporter_stream",
-                        "chars": len(full_text),
-                        "message": f"Drafting report... ({len(full_text):,} chars)",
-                    })
-            return await stream.get_final_message()
-    except Exception:
-        print("[Reporter] Streaming+thinking failed, retrying without thinking:")
-        traceback.print_exc()
-
-    # Attempt 2: non-streaming without thinking (simpler, more compatible)
-    return await client.messages.create(
-        model=MODEL,
-        max_tokens=8192,
-        system=REPORTER_SYSTEM,
-        messages=messages,
-    )
+async def _call_reporter(system: str, messages: list[dict], progress_callback=None) -> anthropic.types.Message:
+    """Stream the reporter. Retries up to 3 times on 429 rate-limit errors."""
+    for attempt in range(3):
+        try:
+            full_text = ""
+            async with client.messages.stream(
+                model=FAST_MODEL,
+                max_tokens=6000,
+                system=system,
+                messages=messages,
+            ) as stream:
+                async for chunk in stream.text_stream:
+                    full_text += chunk
+                    if progress_callback and len(full_text) % 400 < max(1, len(chunk)):
+                        await progress_callback({
+                            "stage": "reporter_stream",
+                            "chars": len(full_text),
+                            "message": f"Drafting report... ({len(full_text):,} chars)",
+                        })
+                return await stream.get_final_message()
+        except anthropic.RateLimitError as e:
+            wait = 15 * (2 ** attempt)   # 15s, 30s, 60s
+            print(f"[Reporter] 429 rate limit (attempt {attempt+1}/3) — waiting {wait}s: {e}")
+            if attempt == 2:
+                raise
+            await asyncio.sleep(wait)
+        except Exception:
+            print("[Reporter] Streaming failed, falling back to non-streaming:")
+            traceback.print_exc()
+            return await client.messages.create(
+                model=FAST_MODEL,
+                max_tokens=6000,
+                system=system,
+                messages=messages,
+            )
 
 
 async def generate_report(
@@ -240,41 +245,35 @@ Please revise your report addressing all critique points. Respond with improved 
             })
 
         try:
-            report_response = await _call_reporter(reporter_messages, progress_callback=progress_callback)
+            report_response = await _call_reporter(REPORTER_SYSTEM, reporter_messages, progress_callback=progress_callback)
         except Exception as exc:
             print(f"[Reporter] All API attempts failed on round {round_num}:")
             traceback.print_exc()
             return _fallback_report(incidents, evaluations, error_message=str(exc))
 
-        reporter_text = ""
-        for block in report_response.content:
-            if hasattr(block, "text"):
-                reporter_text += block.text
+        reporter_text = "".join(b.text for b in report_response.content if hasattr(b, "text"))
+        print(f"[Reporter] Round {round_num} response: {len(reporter_text)} chars")
+        print(f"[Reporter] Draft preview:\n{reporter_text[:600]}\n{'...' if len(reporter_text) > 600 else ''}")
 
-        print(f"[Reporter] Round {round_num} response length: {len(reporter_text)} chars")
-
-        # Serialise content blocks to plain dicts for multi-turn history
         reporter_messages.append({
             "role": "assistant",
             "content": _serialise_content(report_response.content),
         })
 
-        # Parse reporter's JSON
         try:
-            import re
             json_match = re.search(r'\{[\s\S]*\}', reporter_text)
             if json_match:
                 report_draft = json.loads(json_match.group())
-                print(f"[Reporter] Round {round_num} JSON parsed successfully")
+                print(f"[Reporter] Round {round_num} JSON parsed OK — confidence: {report_draft.get('overall_confidence')}%")
             else:
-                print(f"[Reporter] Round {round_num} — no JSON found in response, using raw text fallback")
+                print(f"[Reporter] Round {round_num} — no JSON found in response")
                 report_draft = {"raw_text": reporter_text, "parse_error": True}
         except Exception as e:
             print(f"[Reporter] Round {round_num} JSON parse error: {e}")
             report_draft = {"raw_text": reporter_text, "parse_error": True}
 
-        # ── Critic turn ──────────────────────────────────────────────────────
-        print(f"[Reporter] Round {round_num}/{MAX_CRITIC_ROUNDS} — critic reviewing...")
+        # ── Critic turn (Haiku — fast structured review) ──────────────────────
+        print(f"[Critic] Round {round_num}/{MAX_CRITIC_ROUNDS} — reviewing...")
         if progress_callback:
             await progress_callback({
                 "stage": "critic",
@@ -287,43 +286,28 @@ Please revise your report addressing all critique points. Respond with improved 
             "content": f"Review this intelligence report:\n\n{json.dumps(report_draft, indent=2)}"
         }]
         try:
-            # Try with thinking first, fall back to without
-            try:
-                critic_response = await client.messages.create(
-                    model=MODEL,
-                    max_tokens=4096,
-                    thinking={"type": "adaptive"},
-                    system=CRITIC_SYSTEM,
-                    messages=critic_messages,
-                )
-            except Exception:
-                print(f"[Critic] thinking call failed, retrying without:")
-                traceback.print_exc()
-                critic_response = await client.messages.create(
-                    model=MODEL,
-                    max_tokens=4096,
-                    system=CRITIC_SYSTEM,
-                    messages=critic_messages,
-                )
+            critic_response = await client.messages.create(
+                model=FAST_MODEL,
+                max_tokens=2048,
+                system=CRITIC_SYSTEM,
+                messages=critic_messages,
+            )
 
-            critic_text = ""
-            for block in critic_response.content:
-                if hasattr(block, "text"):
-                    critic_text += block.text
+            critic_text = "".join(b.text for b in critic_response.content if hasattr(b, "text"))
+            print(f"[Critic] Round {round_num} response:\n{critic_text[:800]}")
 
             try:
-                import re
                 json_match = re.search(r'\{[\s\S]*\}', critic_text)
                 if json_match:
                     critic_feedback = json.loads(json_match.group())
                 else:
-                    critic_feedback = {"approved": False, "critique": critic_text[:500]}
+                    critic_feedback = {"approved": False, "overall_quality": 50, "critique": critic_text[:500]}
             except Exception as e:
                 print(f"[Critic] JSON parse error: {e}")
-                critic_feedback = {"approved": False, "critique": critic_text[:500]}
+                critic_feedback = {"approved": False, "overall_quality": 50, "critique": critic_text[:500]}
 
         except Exception:
-            print(f"[Critic] All API calls failed on round {round_num}, auto-approving:")
+            print(f"[Critic] API call failed on round {round_num}, auto-approving:")
             traceback.print_exc()
             critic_feedback = {
                 "approved": True,
@@ -382,7 +366,9 @@ Your role is to synthesise all evidence into a rigorous, well-evidenced case rep
 
 Be specific. Cite evidence. Justify every claim. Write for professionals who will act on this report.
 
-IMPORTANT: Your final report MUST be valid JSON matching this schema:
+IMPORTANT: Keep each field concise (2-4 sentences max per string field) to ensure the full JSON fits within the response limit. Do not pad or repeat information across fields.
+
+IMPORTANT: Your final report MUST be valid JSON matching this schema. Output ONLY the JSON object — no markdown fences, no preamble:
 {
   "title": "string - e.g. 'Dark Fleet Risk Assessment: VESSEL_NAME (MMSI XXXXXXXXX)'",
   "executive_summary": "string - 2-3 sentence summary with overall risk verdict",
@@ -534,43 +520,15 @@ Please revise your report addressing all critique points. Respond with improved 
             })
 
         try:
-            try:
-                full_text = ""
-                async with client.messages.stream(
-                    model=MODEL,
-                    max_tokens=8192,
-                    thinking={"type": "adaptive"},
-                    system=INVESTIGATION_REPORTER_SYSTEM,
-                    messages=reporter_messages,
-                ) as stream:
-                    async for chunk in stream.text_stream:
-                        full_text += chunk
-                        if progress_callback and len(full_text) % 400 < max(1, len(chunk)):
-                            await progress_callback({
-                                "stage": "reporter_stream",
-                                "chars": len(full_text),
-                                "message": f"Drafting case report... ({len(full_text):,} chars)",
-                            })
-                    report_response = await stream.get_final_message()
-            except Exception:
-                print("[InvReporter] Streaming+thinking failed, retrying without thinking:")
-                traceback.print_exc()
-                report_response = await client.messages.create(
-                    model=MODEL,
-                    max_tokens=8192,
-                    system=INVESTIGATION_REPORTER_SYSTEM,
-                    messages=reporter_messages,
-                )
-
+            report_response = await _call_reporter(INVESTIGATION_REPORTER_SYSTEM, reporter_messages, progress_callback=progress_callback)
         except Exception as exc:
             print(f"[InvReporter] All API attempts failed on round {round_num}:")
             traceback.print_exc()
             return _fallback_investigation_report(vessel_info, ml_score, str(exc))
 
-        reporter_text = "".join(
-            block.text for block in report_response.content if hasattr(block, "text")
-        )
+        reporter_text = "".join(b.text for b in report_response.content if hasattr(b, "text"))
         print(f"[InvReporter] Round {round_num} response: {len(reporter_text)} chars")
+        print(f"[InvReporter] Draft preview:\n{reporter_text[:600]}\n{'...' if len(reporter_text) > 600 else ''}")
 
         reporter_messages.append({
             "role": "assistant",
@@ -578,18 +536,19 @@ Please revise your report addressing all critique points. Respond with improved 
         })
 
         try:
-            import re as _re2
-            json_match = _re2.search(r'\{[\s\S]*\}', reporter_text)
+            json_match = re.search(r'\{[\s\S]*\}', reporter_text)
             if json_match:
                 report_draft = json.loads(json_match.group())
-                print(f"[InvReporter] Round {round_num} JSON parsed OK")
+                print(f"[InvReporter] Round {round_num} JSON parsed OK — confidence: {report_draft.get('overall_confidence')}%")
             else:
+                print(f"[InvReporter] Round {round_num} — no JSON found in response")
                 report_draft = {"raw_text": reporter_text, "parse_error": True}
         except Exception as e:
             print(f"[InvReporter] JSON parse error: {e}")
             report_draft = {"raw_text": reporter_text, "parse_error": True}
 
-        # ── Critic turn ──────────────────────────────────────────────────────
+        # ── Critic turn (Haiku — fast structured review) ──────────────────────
+        print(f"[InvCritic] Round {round_num}/{MAX_CRITIC_ROUNDS} — reviewing...")
         if progress_callback:
             await progress_callback({
                 "stage": "critic",
@@ -602,40 +561,28 @@ Please revise your report addressing all critique points. Respond with improved 
             "content": f"Review this dark fleet risk assessment:\n\n{json.dumps(report_draft, indent=2)}"
         }]
         try:
-            try:
-                critic_response = await client.messages.create(
-                    model=MODEL,
-                    max_tokens=4096,
-                    thinking={"type": "adaptive"},
-                    system=INVESTIGATION_CRITIC_SYSTEM,
-                    messages=critic_messages,
-                )
-            except Exception:
-                print("[InvCritic] thinking call failed, retrying without:")
-                traceback.print_exc()
-                critic_response = await client.messages.create(
-                    model=MODEL,
-                    max_tokens=4096,
-                    system=INVESTIGATION_CRITIC_SYSTEM,
-                    messages=critic_messages,
-                )
-
-            critic_text = "".join(
-                block.text for block in critic_response.content if hasattr(block, "text")
+            critic_response = await client.messages.create(
+                model=FAST_MODEL,
+                max_tokens=2048,
+                system=INVESTIGATION_CRITIC_SYSTEM,
+                messages=critic_messages,
             )
+
+            critic_text = "".join(b.text for b in critic_response.content if hasattr(b, "text"))
+            print(f"[InvCritic] Round {round_num} response:\n{critic_text[:800]}")
+
             try:
-                import re as _re3
-                json_match = _re3.search(r'\{[\s\S]*\}', critic_text)
+                json_match = re.search(r'\{[\s\S]*\}', critic_text)
                 if json_match:
                     critic_feedback = json.loads(json_match.group())
                 else:
-                    critic_feedback = {"approved": False, "critique": critic_text[:500]}
+                    critic_feedback = {"approved": False, "overall_quality": 50, "critique": critic_text[:500]}
             except Exception as e:
                 print(f"[InvCritic] JSON parse error: {e}")
-                critic_feedback = {"approved": False, "critique": critic_text[:500]}
+                critic_feedback = {"approved": False, "overall_quality": 50, "critique": critic_text[:500]}
 
         except Exception:
-            print(f"[InvCritic] All calls failed on round {round_num}, auto-approving:")
+            print(f"[InvCritic] API call failed on round {round_num}, auto-approving:")
             traceback.print_exc()
             critic_feedback = {
                 "approved": True,

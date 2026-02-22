@@ -59,8 +59,7 @@ async def _on_ship_update(ships: list[dict]):
     asyncio.create_task(db.record_ship_positions(ships))
 
 async def _on_incident(incident: dict):
-    if detector:
-        await detector.add_incident(incident)
+    pass  # Investigation-mode only — incidents are triggered manually via POST /investigate
 
 
 # ── Lifespan (startup / shutdown) ─────────────────────────────────────────────
@@ -187,10 +186,24 @@ async def _run_investigation(mmsi: str, vessel_name: str, flag_state: str, regio
 
 @app.post("/investigate")
 async def investigate(body: InvestigationRequest):
-    asyncio.create_task(_run_investigation(
-        body.mmsi.strip(), body.vessel_name.strip(), body.flag_state.strip(), body.region.strip()
-    ))
-    return {"status": "started", "mmsi": body.mmsi}
+    mmsi = body.mmsi.strip()
+
+    # Auto-enrich from current AIS feed if the vessel is tracked
+    current_ships = monitor.get_ships() if monitor else []
+    vessel = next((s for s in current_ships if str(s.get("mmsi", "")) == mmsi), None)
+    vessel_name = vessel.get("name", "") if vessel else body.vessel_name.strip()
+    region = (vessel.get("in_hotzone") or body.region.strip()) if vessel else body.region.strip()
+    flag_state = body.flag_state.strip()
+
+    # Broadcast vessel location to all clients so the map can highlight it
+    if vessel:
+        await manager.broadcast({
+            "type": "investigation_start",
+            "data": {"mmsi": mmsi, "vessel": vessel},
+        })
+
+    asyncio.create_task(_run_investigation(mmsi, vessel_name, flag_state, region))
+    return {"status": "started", "mmsi": mmsi}
 
 
 @app.post("/mode")

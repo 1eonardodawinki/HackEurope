@@ -8,11 +8,12 @@ Given one or more AIS incidents (dropout / proximity), it:
 """
 
 import json
+import re
 import traceback
 import anthropic
 from data_fetchers.news_fetcher import search_recent_news
 from data_fetchers.commodity_fetcher import get_commodity_price
-from config import MODEL, ANTHROPIC_API_KEY
+from config import FAST_MODEL, ANTHROPIC_API_KEY
 
 client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -123,8 +124,8 @@ Please:
     try:
         for _ in range(max_iterations):
             response = await client.messages.create(
-                model=MODEL,
-                max_tokens=4096,
+                model=FAST_MODEL,
+                max_tokens=1536,
                 system=SYSTEM_PROMPT,
                 tools=TOOLS,
                 messages=messages,
@@ -180,7 +181,6 @@ Please:
 
     # Try to parse JSON from response
     try:
-        import re
         json_match = re.search(r'\{[\s\S]*\}', final_text)
         if json_match:
             return json.loads(json_match.group())
