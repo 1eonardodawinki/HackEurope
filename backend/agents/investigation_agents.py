@@ -99,15 +99,69 @@ async def _run_agent(system_prompt: str, user_prompt: str, label: str) -> dict:
         # Try to parse JSON from response
         json_match = re.search(r'\{[\s\S]*\}', final_text)
         if json_match:
-            return json.loads(json_match.group())
+            parsed = json.loads(json_match.group())
+            _print_agent_result(label, parsed)
+            return parsed
 
         # Fallback: wrap raw text
+        print(f"[{label}] No JSON found — returning raw text ({len(final_text)} chars)")
         return {"summary": final_text[:800], "parse_error": True}
 
     except Exception:
         print(f"[{label}] Agent call failed:")
         traceback.print_exc()
         return {"summary": f"{label} failed — using baseline assessment.", "error": True}
+
+
+def _print_agent_result(label: str, result: dict) -> None:
+    """Pretty-print agent findings to terminal."""
+    sep = "─" * 60
+    print(f"\n┌{sep}┐")
+    print(f"│ [{label}] COMPLETE")
+    print(f"├{sep}┤")
+
+    # Summary line
+    summary = result.get("summary", "")
+    if summary:
+        # Word-wrap at ~58 chars
+        words = summary.split()
+        line, lines = "", []
+        for w in words:
+            if len(line) + len(w) + 1 > 58:
+                lines.append(line)
+                line = w
+            else:
+                line = (line + " " + w).strip()
+        if line:
+            lines.append(line)
+        for l in lines:
+            print(f"│  {l}")
+
+    # Key-value fields
+    kv_fields = [
+        ("exposure_level", "Exposure"),
+        ("threat_level",   "Threat"),
+    ]
+    for key, display in kv_fields:
+        if key in result:
+            print(f"│  {display}: {result[key]}")
+
+    # List fields
+    list_fields = [
+        ("key_findings",   "·"),
+        ("sanctions_hits", "⚑"),
+        ("key_risks",      "▸"),
+        ("risk_indicators","!"),
+    ]
+    for key, icon in list_fields:
+        items = result.get(key, [])
+        if items:
+            print(f"│  ── {key.replace('_', ' ').upper()} ──")
+            for item in items[:4]:
+                short = str(item)[:55] + ("…" if len(str(item)) > 55 else "")
+                print(f"│  {icon} {short}")
+
+    print(f"└{sep}┘\n")
 
 
 # ── Individual agents ──────────────────────────────────────────────────────────
