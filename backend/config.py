@@ -50,7 +50,7 @@ HOTZONES = {
 }
 
 # ── Detection Thresholds ──────────────────────────────────────────────────────
-AIS_DROPOUT_MINUTES = 25          # Ship is "dark" after this many minutes
+AIS_DROPOUT_MINUTES = 7           # Ship is "dark" after this many minutes (eviction at 10 min)
 PROXIMITY_DISTANCE_NM = 0.4       # Nautical miles for ship-to-ship proximity
 PROXIMITY_DURATION_MINUTES = 15   # How long ships must be close to flag
 INCIDENT_THRESHOLD = 3            # Incidents needed to trigger intel report

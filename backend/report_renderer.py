@@ -227,15 +227,25 @@ def render_pdf(report: dict) -> bytes:
     actions     = report.get("recommended_actions", []) or []
     predictions = report.get("commodity_predictions", []) or []
 
-    ml_pct   = int((ml.get("probability", 0)) * 100)
-    tier     = ml.get("risk_tier", "UNKNOWN")
-    conf     = report.get("overall_confidence")
-    approved = meta.get("final_approved", False)
-    tier_clr = TIER_COLOR.get(tier, C_MID)
+    ml_pct      = int((ml.get("probability", 0)) * 100)
+    tier        = ml.get("risk_tier", "UNKNOWN")
+    conf        = report.get("overall_confidence")
+    approved    = meta.get("final_approved", False)
+    tier_clr    = TIER_COLOR.get(tier, C_MID)
+    risk_verdict = report.get("risk_verdict", "")
 
-    conf_str    = f"{conf}%" if conf is not None else "—"
-    status_str  = "APPROVED" if approved else "PROVISIONAL"
-    status_clr  = C_GREEN if approved else C_WARN
+    VERDICT_COLOR = {
+        "CLEARED":      C_GREEN,
+        "LOW_RISK":     C_GREEN,
+        "INCONCLUSIVE": C_WARN,
+        "ELEVATED":     C_WARN,
+        "HIGH_RISK":    C_DANGER,
+    }
+    verdict_clr = VERDICT_COLOR.get(risk_verdict, C_MID)
+
+    conf_str   = f"{conf}%" if conf is not None else "—"
+    status_str = "APPROVED" if approved else "PROVISIONAL"
+    status_clr = C_GREEN if approved else C_WARN
 
     # ── Buffer & document ─────────────────────────────────────────────────────
     buf = io.BytesIO()
@@ -320,6 +330,49 @@ def render_pdf(report: dict) -> bytes:
         ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
     ]))
     story.append(meta_tbl)
+
+    # ── Verdict banner (investigation reports only) ───────────────────────────
+    if is_inv and risk_verdict:
+        is_clean  = risk_verdict in ("CLEARED", "LOW_RISK")
+        is_danger = risk_verdict == "HIGH_RISK"
+        bg_clr = (
+            colors.Color(0.90, 0.97, 0.91) if is_clean else
+            colors.Color(0.98, 0.93, 0.90) if is_danger else
+            colors.Color(0.97, 0.95, 0.88)
+        )
+        border_clr = verdict_clr
+        verdict_label = {
+            "CLEARED":      "CLEARED — No evidence of dark fleet activity",
+            "LOW_RISK":     "LOW RISK — Insufficient evidence for dark fleet classification",
+            "INCONCLUSIVE": "INCONCLUSIVE — Mixed signals, further monitoring advised",
+            "ELEVATED":     "ELEVATED RISK — Multiple indicators present",
+            "HIGH_RISK":    "HIGH RISK — Specific evidence of dark fleet activity",
+        }.get(risk_verdict, risk_verdict)
+
+        verdict_style = ParagraphStyle(
+            "verdict",
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            textColor=verdict_clr,
+            alignment=TA_CENTER,
+            leading=13,
+        )
+        verdict_tbl = Table(
+            [[Paragraph(verdict_label, verdict_style)]],
+            colWidths=[PAGE_W - 2 * MARGIN],
+            hAlign="LEFT",
+        )
+        verdict_tbl.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), bg_clr),
+            ("BOX",           (0, 0), (-1, -1), 1.2, border_clr),
+            ("TOPPADDING",    (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 12),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 12),
+        ]))
+        story.append(Spacer(1, 6))
+        story.append(verdict_tbl)
+
     story.append(Spacer(1, 10))
 
     # ── Assessment ────────────────────────────────────────────────────────────
