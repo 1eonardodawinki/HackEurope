@@ -106,6 +106,61 @@ cp backend/.env.example backend/.env
 
 ```bash
 cd backend
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+# macOS/Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+### 3. Frontend
+
+```bash
+cd frontend
+cp .env.example .env        # add your VITE_MAPBOX_TOKEN
+npm install
+npm run dev                 # → http://localhost:5173
+```
+
+### 4. Supabase (optional persistence)
+
+1. Create a free project at [supabase.com](https://supabase.com)
+2. Run `supabase/schema.sql` in the SQL editor
+3. Add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to `.env`
+
+## API Keys
+
+| Key | Where | Free tier |
+|-----|-------|-----------|
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Pay-per-use |
+| `VITE_MAPBOX_TOKEN` | [mapbox.com](https://mapbox.com) | 50k map loads/month |
+| `AISSTREAM_API_KEY` | [aisstream.io](https://aisstream.io) | Free |
+| `GFW_API_TOKEN` | [globalfishingwatch.org](https://globalfishingwatch.org/our-apis/tokens) | Free (non-commercial) |
+| `SUPABASE_URL/KEY` | [supabase.com](https://supabase.com) | 500MB free |
+| `NEWS_API_KEY` | [newsapi.org](https://newsapi.org) | 100 req/day free |
+
+## How it works
+
+1. **AIS Monitor** streams ship positions from AISstream.io (or simulates them in demo mode)
+2. Ships in the **Black Sea**, **Strait of Hormuz**, and **Red Sea** are continuously tracked
+3. When a ship's AIS signal drops or two ships get suspiciously close, an **incident** is flagged
+4. The **Evaluator Agent** (Claude Opus 4.6) pulls news + commodity data and scores the incident (0–100%)
+5. When ≥3 incidents occur in a region within 24h, the **Reporter Agent** generates an intelligence report
+6. The **Critic Agent** adversarially reviews the report (up to 3 rounds) until it approves
+7. The final report shows **commodity price impact predictions** with confidence scores
+
+## Quick start (demo mode)
+
+Demo mode runs entirely without live API keys — only `ANTHROPIC_API_KEY` is required.
+
+**1. Start the backend**
+
+```bash
+cd backend
 
 # Windows
 python -m venv .venv && .venv\Scripts\activate
