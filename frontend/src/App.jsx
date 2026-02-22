@@ -102,7 +102,7 @@ export default function App() {
 
   const trackShip = async () => {
     const mmsi = mmsiInput.trim()
-    if (!mmsi || !connected) return
+    if (!mmsi) return
     setGfwPath(null)
     const vessel = ships.find((s) => String(s.mmsi) === mmsi)
     if (vessel) {
@@ -112,14 +112,44 @@ export default function App() {
       setInvestigatedVessel({ mmsi, name: 'Loading…', notFound: true })
     }
     try {
-      const r = await fetch(`http://localhost:8000/gfw-path?mmsi=${encodeURIComponent(mmsi)}`)
+      // Call the track microservice (port 8001) — maritime-routed, no land crossings
+      const today = new Date()
+      const sixMonthsAgo = new Date(today)
+      sixMonthsAgo.setMonth(today.getMonth() - 6)
+      const start = sixMonthsAgo.toISOString().slice(0, 10)
+      const end = today.toISOString().slice(0, 10)
+
+      const r = await fetch(
+        `http://localhost:8001/track?mmsi=${encodeURIComponent(mmsi)}&start=${start}&end=${end}`
+      )
       const data = await r.json()
-      setGfwPath(data)
-      if (data?.metadata?.name) {
-        setInvestigatedVessel((prev) => (prev && String(prev.mmsi) === mmsi ? { ...prev, name: data.metadata.name, type: data.metadata.ship_type } : prev))
+
+      if (data?.detail) throw new Error(data.detail)
+
+      // Normalize to the shape Map.jsx already understands
+      const path = (data.points || []).map((p) => ({ lat: p.lat, lon: p.lon }))
+      const gfwData = {
+        path,
+        path_segments: [path],
+        metadata: {
+          name: data.name,
+          ship_type: data.ship_type,
+          flag: data.flag,
+          point_count: data.point_count,
+          time_range: data.time_range,
+          data_source: 'maritime_routed',
+        },
       }
-    } catch {
-      setGfwPath({ mmsi, error: 'Failed to fetch path', path: [], metadata: {} })
+      setGfwPath(gfwData)
+      if (data.name) {
+        setInvestigatedVessel((prev) =>
+          prev && String(prev.mmsi) === mmsi
+            ? { ...prev, name: data.name, type: data.ship_type }
+            : prev
+        )
+      }
+    } catch (err) {
+      setGfwPath({ mmsi, error: String(err), path: [], metadata: {} })
     }
   }
 
