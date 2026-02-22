@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import Map from '../components/Map.jsx'
 import IncidentPanel from '../components/IncidentPanel.jsx'
 import ReportModal from '../components/ReportModal.jsx'
 import { useWebSocket } from '../hooks/useWebSocket.js'
 
-export default function DashboardPage() {
+export default function DashboardPage({ onHome }) {
   const [ships, setShips] = useState([])
   const [hotzones, setHotzones] = useState({})
   const [agentStatus, setAgentStatus] = useState({ stage: 'idle', message: 'Connecting...' })
@@ -17,14 +17,32 @@ export default function DashboardPage() {
   const [selectedShip, setSelectedShip] = useState(null)
   const [editZones, setEditZones] = useState(false)
   const [zoneOverrides, setZoneOverrides] = useState({})
+  const [deletedZones, setDeletedZones] = useState(new Set())
+  const [customZones, setCustomZones] = useState({})
+  const zoneCountRef = useRef(0)
   const [mmsiInput, setMmsiInput] = useState('')
   const [investigating, setInvestigating] = useState(false)
-  const [investigatedVessel, setInvestigatedVessel] = useState(null)
+  const [, setInvestigatedVessel] = useState(null)
   const [gfwPath, setGfwPath] = useState(null)
   const [unmatchedPoints, setUnmatchedPoints] = useState(null)
 
   const handleZoneChange = useCallback((name, geo) => {
     setZoneOverrides(prev => ({ ...prev, [name]: geo }))
+  }, [])
+
+  const handleDeleteZone = useCallback((name) => {
+    setDeletedZones(prev => new Set([...prev, name]))
+    setCustomZones(prev => { const next = { ...prev }; delete next[name]; return next })
+  }, [])
+
+  const handleAddZone = useCallback(({ centerLon, centerLat }) => {
+    zoneCountRef.current += 1
+    const name = `Zone ${zoneCountRef.current}`
+    const r = 5
+    setCustomZones(prev => ({
+      ...prev,
+      [name]: { min_lat: centerLat - r, max_lat: centerLat + r, min_lon: centerLon - r, max_lon: centerLon + r, color: '#ff6b00', description: '', commodities: [] },
+    }))
   }, [])
 
   const [logs, setLogs] = useState([])
@@ -268,6 +286,10 @@ export default function DashboardPage() {
     }
   }
 
+  const visibleHotzones = {
+    ...Object.fromEntries(Object.entries(hotzones).filter(([name]) => !deletedZones.has(name))),
+    ...customZones,
+  }
   const hotzoneShips = ships.filter(s => s.in_hotzone).length
   const darkShips = ships.filter(s => s.status === 'dark').length
 
@@ -277,8 +299,7 @@ export default function DashboardPage() {
       {/* ── Header ── */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
-          <span style={styles.logo}>BALAGAER</span>
-          <span style={styles.logoSub}>Intelligence Monitoring Platform</span>
+          <span style={{ ...styles.logo, cursor: onHome ? 'pointer' : 'default' }} onClick={onHome}>PELAGOS</span>
         </div>
 
         <div style={styles.headerStats}>
@@ -324,13 +345,15 @@ export default function DashboardPage() {
         <div style={{ flex: 1, position: 'relative' }}>
           <Map
             ships={ships}
-            hotzones={hotzones}
+            hotzones={visibleHotzones}
             incidents={[]}
             selectedShip={selectedShip}
             onSelectShip={setSelectedShip}
             editZones={editZones}
             zoneOverrides={zoneOverrides}
             onZoneChange={handleZoneChange}
+            onDeleteZone={handleDeleteZone}
+            onAddZone={handleAddZone}
             gfwPath={gfwPath}
             unmatchedPoints={unmatchedPoints}
             mmsiInput={mmsiInput}
@@ -430,15 +453,16 @@ function AgentBadge({ status }) {
 const styles = {
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '0 24px', height: 48,
+    padding: '0 24px', height: 64,
     background: 'var(--bg)',
     borderBottom: '1px solid var(--border)',
     flexShrink: 0,
   },
   headerLeft: { display: 'flex', alignItems: 'baseline', gap: 14 },
   logo: {
-    fontSize: 13, fontWeight: 600, color: 'var(--text)',
-    letterSpacing: 3, textTransform: 'uppercase',
+    fontSize: 18, fontWeight: 700, color: 'var(--text)',
+    letterSpacing: 4, textTransform: 'uppercase',
+    fontFamily: '"Barlow Condensed", "Barlow", system-ui, sans-serif',
   },
   logoSub: { fontSize: 10, color: 'var(--text3)', letterSpacing: 1 },
   headerStats: { display: 'flex', gap: 32 },
@@ -479,12 +503,12 @@ function MmsiSearch({ value, onChange, onSubmit, disabled, investigating }) {
         onClick={onSubmit}
         disabled={disabled || !value.trim()}
         style={{
-          background: investigating ? 'rgba(0,229,255,0.08)' : 'transparent',
-          border: `1px solid ${investigating ? 'var(--accent)' : 'var(--border)'}`,
-          color: investigating ? 'var(--accent)' : 'var(--text3)',
-          fontSize: 9, letterSpacing: 2, fontFamily: 'inherit',
-          padding: '4px 10px', cursor: disabled ? 'not-allowed' : 'pointer',
-          opacity: disabled && !investigating ? 0.4 : 1,
+          background: investigating ? 'rgba(0,229,255,0.08)' : '#fff',
+          border: `1px solid ${investigating ? 'var(--accent)' : '#fff'}`,
+          color: investigating ? 'var(--accent)' : '#000',
+          fontSize: 9, letterSpacing: 2, fontFamily: 'inherit', fontWeight: 700,
+          padding: '5px 12px', cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled && !investigating ? 0.35 : 1,
           transition: 'all 0.15s',
         }}
       >

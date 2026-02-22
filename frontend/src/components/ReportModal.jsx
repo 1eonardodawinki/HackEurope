@@ -197,7 +197,7 @@ export default function ReportModal({ report, onClose }) {
               <button onClick={downloadPdf} disabled={downloading} style={styles.downloadBtn}>
                 {downloading ? 'GENERATING…' : '↓ DOWNLOAD PDF'}
               </button>
-              <span style={styles.footerText}>CLAUDE HAIKU 4.5 · BALAGAER</span>
+              <span style={styles.footerText}>CLAUDE HAIKU 4.5 · PELAGOS</span>
             </div>
           </div>
 

@@ -29,7 +29,7 @@ HOTZONES = {
         "min_lon": 55.0, "max_lon": 60.0,
         "center_lat": 26.0, "center_lon": 57.0,
         "commodities": ["Brent Crude Oil", "LNG", "WTI Crude"],
-        "color": "#ff0044",
+        "color": "#ff6b00",
         "description": "Critical chokepoint for ~20% of global oil supply",
     },
     "Black Sea": {
