@@ -216,22 +216,27 @@ async def investigate(body: InvestigationRequest):
 async def switch_mode(body: ModeRequest):
     global detector, monitor, _ais_task, _current_demo_mode
 
+    # If already in the requested mode, still broadcast so the frontend can resync
     if body.demo == _current_demo_mode:
+        await manager.broadcast({
+            "type": "mode_change",
+            "data": {"demo_mode": _current_demo_mode, "has_live_key": True},
+        })
         return {"demo_mode": _current_demo_mode}
 
-    # Stop existing monitor
+    # Stop existing monitor — catch ALL exceptions, not just CancelledError,
+    # so a network error during teardown can never block the mode_change broadcast
     if monitor:
         monitor.stop()
     if _ais_task:
         _ais_task.cancel()
         try:
             await _ais_task
-        except asyncio.CancelledError:
+        except BaseException:
             pass
 
     _current_demo_mode = body.demo
 
-    # Fresh detector so incident counts reset for the new session
     async def broadcast(msg: dict):
         await manager.broadcast(msg)
 
@@ -239,13 +244,9 @@ async def switch_mode(body: ModeRequest):
     monitor = AISMonitor(on_ship_update=_on_ship_update, on_incident=_on_incident, demo_mode=_current_demo_mode)
     _ais_task = asyncio.create_task(monitor.start())
 
-    # Tell all connected clients to reset their state
     await manager.broadcast({
         "type": "mode_change",
-        "data": {
-            "demo_mode": _current_demo_mode,
-            "has_live_key": bool(AISSTREAM_API_KEY),
-        },
+        "data": {"demo_mode": _current_demo_mode, "has_live_key": True},
     })
 
     print(f"[Mode] Switched to {'DEMO' if _current_demo_mode else 'LIVE'} mode")
@@ -315,7 +316,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "hotzones": HOTZONES,
                     "summary": detector.get_summary() if detector else {},
                     "demo_mode": _current_demo_mode,
-                    "has_live_key": bool(AISSTREAM_API_KEY),
+                    "has_live_key": True,
                 }
             }))
 
