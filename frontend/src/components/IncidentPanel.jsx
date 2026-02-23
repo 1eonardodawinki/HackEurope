@@ -15,7 +15,7 @@ export default function IncidentPanel({
   }, [agentStatus.stage])
 
   return (
-    <div style={styles.panel}>
+    <div style={styles.panel} className="incident-panel">
       {/* Tabs */}
       <div style={styles.tabs}>
         {Object.entries(TAB_LABELS).map(([tab, label]) => (

@@ -100,3 +100,85 @@ html, body, #root {
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
 .incident-marker.high { background: var(--danger); }
+
+/* ── Mobile Responsive (≤ 768px) ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Dashboard — header */
+  .dash-header {
+    height: auto !important;
+    flex-wrap: wrap;
+    padding: 10px 14px !important;
+    gap: 8px;
+  }
+  .dash-header-stats { display: none !important; }
+  .dash-header-right {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+  }
+  .dash-header-divider { display: none !important; }
+
+  /* Dashboard — body: vertical stack */
+  .dash-body { flex-direction: column !important; }
+  .dash-map-wrap { flex: 1 !important; min-height: 200px; }
+  .incident-panel {
+    width: 100% !important;
+    height: 46vh;
+    flex: none !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(255,255,255,0.08) !important;
+  }
+
+  /* Dashboard — MMSI search */
+  .mmsi-search-wrap { flex: 1; min-width: 0; }
+  .mmsi-search-wrap input { width: auto !important; flex: 1; min-width: 60px; }
+
+  /* Landing — nav */
+  .land-nav { padding: 0 16px !important; }
+  .land-nav-links { display: none !important; }
+
+  /* Landing — hero */
+  .land-hero-inner { padding: 80px 20px 40px !important; }
+
+  /* Landing — stats bar: 2×2 grid */
+  .land-stats-bar {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+  .land-stat-cell {
+    border-left: none !important;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 20px !important;
+  }
+  .land-stat-cell:nth-child(even) {
+    border-left: 1px solid rgba(255,255,255,0.08) !important;
+  }
+
+  /* Landing — sections */
+  .land-section { padding: 56px 20px !important; }
+  .land-section-dark-inner { padding: 56px 20px !important; }
+  .land-cta { padding: 72px 20px !important; }
+
+  /* Landing — risk zones table → stacked list */
+  .land-table-head { display: none !important; }
+  .land-table-row {
+    display: flex !important;
+    flex-direction: column;
+    gap: 6px;
+    padding: 20px 0;
+  }
+
+  /* Landing — footer */
+  .land-footer {
+    flex-direction: column !important;
+    gap: 10px;
+    text-align: center;
+    padding: 24px 20px !important;
+  }
+
+  /* Report modal */
+  .report-intel-grid { grid-template-columns: 1fr !important; }
+  .report-evidence-grid { grid-template-columns: 1fr !important; }
+  .report-header-meters { display: none !important; }
+}

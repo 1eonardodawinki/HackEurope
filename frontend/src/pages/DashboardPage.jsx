@@ -306,18 +306,18 @@ export default function DashboardPage({ onHome }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)' }}>
 
       {/* ── Header ── */}
-      <header style={styles.header}>
+      <header style={styles.header} className="dash-header">
         <div style={styles.headerLeft}>
           <span style={{ ...styles.logo, cursor: onHome ? 'pointer' : 'default' }} onClick={onHome}>PELAGOS</span>
         </div>
 
-        <div style={styles.headerStats}>
+        <div style={styles.headerStats} className="dash-header-stats">
           <Stat label="VESSELS" value={ships.length} />
           <Stat label="IN ZONE" value={hotzoneShips} color="var(--warning)" />
           <Stat label="DARK" value={darkShips} color="var(--danger)" />
         </div>
 
-        <div style={styles.headerRight}>
+        <div style={styles.headerRight} className="dash-header-right">
           <MmsiSearch
             value={mmsiInput}
             onChange={setMmsiInput}
@@ -325,7 +325,7 @@ export default function DashboardPage({ onHome }) {
             disabled={investigating || !connected}
             investigating={investigating}
           />
-          <div style={styles.headerDivider} />
+          <div style={styles.headerDivider} className="dash-header-divider" />
           <ModeIndicator
             connected={connected}
             demoMode={demoMode}
@@ -350,8 +350,8 @@ export default function DashboardPage({ onHome }) {
       </header>
 
       {/* ── Body ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }} className="dash-body">
+        <div style={{ flex: 1, position: 'relative' }} className="dash-map-wrap">
           <Map
             ships={ships}
             hotzones={visibleHotzones}
@@ -490,7 +490,7 @@ const styles = {
 function MmsiSearch({ value, onChange, onSubmit, disabled, investigating }) {
   const handleKey = (e) => { if (e.key === 'Enter') onSubmit() }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} className="mmsi-search-wrap">
       <input
         type="text"
         placeholder="MMSI number"

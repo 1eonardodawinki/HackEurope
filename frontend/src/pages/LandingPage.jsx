@@ -92,9 +92,9 @@ export default function LandingPage({ onEnter }) {
     <div style={s.page}>
 
       {/* ── NAV ── */}
-      <nav style={s.nav}>
+      <nav style={s.nav} className="land-nav">
         <span style={s.logo}>PELAGOS</span>
-        <div style={s.navLinks}>
+        <div style={s.navLinks} className="land-nav-links">
           <a href="#capabilities" style={s.navLink}>Capabilities</a>
           <a href="#workflow" style={s.navLink}>Workflow</a>
           <a href="#zones" style={s.navLink}>Risk Zones</a>
@@ -112,7 +112,7 @@ export default function LandingPage({ onEnter }) {
         />
         <div style={s.heroOverlay} aria-hidden="true" />
         <div style={s.heroGrid} aria-hidden="true" />
-        <div style={s.heroInner}>
+        <div style={s.heroInner} className="land-hero-inner">
           <div style={s.heroEyebrow}>Maritime Intelligence · Insurance Underwriting</div>
           <h1 style={s.heroTitle}>
             Know Every<br />Vessel.
@@ -126,9 +126,9 @@ export default function LandingPage({ onEnter }) {
             <a href="#capabilities" style={s.btnGhost}>See capabilities →</a>
           </div>
         </div>
-        <div style={s.statsBar}>
+        <div style={s.statsBar} className="land-stats-bar">
           {STATS.map((st, i) => (
-            <div key={st.label} style={{ ...s.statCell, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
+            <div key={st.label} style={{ ...s.statCell, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.08)' : 'none' }} className="land-stat-cell">
               <span style={s.statNum}>{st.value}</span>
               <span style={s.statLbl}>{st.label}</span>
             </div>
@@ -137,7 +137,7 @@ export default function LandingPage({ onEnter }) {
       </section>
 
       {/* ── CAPABILITIES ── */}
-      <section id="capabilities" style={s.section}>
+      <section id="capabilities" style={s.section} className="land-section">
         <div style={s.sectionHead}>
           <span style={s.eyebrow}>Capabilities</span>
           <h2 style={s.h2}>Everything an underwriter needs.<br />Nothing they don't.</h2>
@@ -157,7 +157,7 @@ export default function LandingPage({ onEnter }) {
 
       {/* ── WORKFLOW ── */}
       <section id="workflow" style={s.sectionDark}>
-        <div style={s.sectionDarkInner}>
+        <div style={s.sectionDarkInner} className="land-section-dark-inner">
           <div style={s.sectionHead}>
             <span style={s.eyebrow}>Workflow</span>
             <h2 style={s.h2}>From MMSI to report<br />in under 30 seconds.</h2>
@@ -208,20 +208,20 @@ export default function LandingPage({ onEnter }) {
       </section>
 
       {/* ── RISK ZONES ── */}
-      <section id="zones" style={s.section}>
+      <section id="zones" style={s.section} className="land-section">
         <div style={s.sectionHead}>
           <span style={s.eyebrow}>Risk Zones</span>
           <h2 style={s.h2}>The world's most critical<br />maritime chokepoints.</h2>
         </div>
         <div style={s.table}>
-          <div style={s.tableHead}>
+          <div style={s.tableHead} className="land-table-head">
             <span>Zone</span>
             <span>Exposure</span>
             <span>Classification</span>
             <span style={{ textAlign: 'right' }}>Risk</span>
           </div>
           {ZONES.map(z => (
-            <div key={z.name} style={s.tableRow}>
+            <div key={z.name} style={s.tableRow} className="land-table-row">
               <span style={s.tZone}>{z.name}</span>
               <span style={s.tStat}><strong style={{ color: '#fff', fontWeight: 600 }}>{z.stat}</strong> — {z.label}</span>
               <span style={s.tFlag}>{z.flag}</span>
@@ -232,7 +232,7 @@ export default function LandingPage({ onEnter }) {
       </section>
 
       {/* ── CTA ── */}
-      <section style={s.ctaSection}>
+      <section style={s.ctaSection} className="land-cta">
         <h2 style={s.ctaTitle}>Start underwriting<br />with confidence.</h2>
         <p style={s.ctaSub}>
           Powered by Sentinel-1 satellite intelligence and AI-driven analysis.<br />
@@ -242,7 +242,7 @@ export default function LandingPage({ onEnter }) {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={s.footer}>
+      <footer style={s.footer} className="land-footer">
         <span style={s.logo}>PELAGOS</span>
         <span style={s.footerMeta}>
           SAR Data: Global Fishing Watch · AI: Pelagos Engine · Mapping: Mapbox

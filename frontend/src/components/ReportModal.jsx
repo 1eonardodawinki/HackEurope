@@ -76,7 +76,7 @@ export default function ReportModal({ report, onClose }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexShrink: 0 }} className="report-header-meters">
             {isInv && ml && (
               <RingMeter value={mlPct} color={riskColor(ml.risk_tier)} sublabel="ML RISK" />
             )}
@@ -111,7 +111,7 @@ export default function ReportModal({ report, onClose }) {
           {isInv && (report.news_intelligence || report.sanctions_assessment || report.geopolitical_context) && (
             <div style={{ marginBottom: 24 }}>
               <SectionLabel>Intelligence Sources</SectionLabel>
-              <div style={styles.intelGrid}>
+              <div style={styles.intelGrid} className="report-intel-grid">
                 {report.news_intelligence && (
                   <IntelCard label="NEWS" color="var(--accent)" text={report.news_intelligence} />
                 )}
@@ -137,7 +137,7 @@ export default function ReportModal({ report, onClose }) {
 
           {/* Evidence + Risk factors — 2-column grid */}
           {(evidence.length > 0 || risks.length > 0) && (
-            <div style={styles.evidenceGrid}>
+            <div style={styles.evidenceGrid} className="report-evidence-grid">
               {evidence.length > 0 && (
                 <div>
                   <SectionLabel>Supporting Evidence</SectionLabel>
