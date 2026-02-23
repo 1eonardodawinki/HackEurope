@@ -23,6 +23,7 @@ export default function DashboardPage({ onHome }) {
   const [deletedZones, setDeletedZones] = useState(new Set())
   const [customZones, setCustomZones] = useState({})
   const zoneCountRef = useRef(0)
+  const clientIdRef = useRef(null)
   const [mmsiInput, setMmsiInput] = useState('')
   const [investigating, setInvestigating] = useState(false)
   const [, setInvestigatedVessel] = useState(null)
@@ -59,6 +60,7 @@ export default function DashboardPage({ onHome }) {
     onConnect: () => setConnected(true),
     onDisconnect: () => setConnected(false),
     onInit: (data) => {
+      if (data.client_id) clientIdRef.current = data.client_id
       setShips(data.ships || [])
       setHotzones(data.hotzones || {})
       setDemoMode(!!data.demo_mode)
@@ -242,7 +244,7 @@ export default function DashboardPage({ onHome }) {
       await fetch(`${API}/investigate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mmsi }),
+        body: JSON.stringify({ mmsi, client_id: clientIdRef.current || '' }),
       })
     } catch {
       setInvestigating(false)
@@ -266,7 +268,11 @@ export default function DashboardPage({ onHome }) {
 
   const abortInvestigation = async () => {
     try {
-      await fetch(`${API}/investigate/abort`, { method: 'POST' })
+      await fetch(`${API}/investigate/abort`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientIdRef.current || '' }),
+      })
     } catch {
       // Backend unreachable — reset state client-side anyway
     }

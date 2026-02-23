@@ -7,9 +7,10 @@ import asyncio
 import json
 import os
 import sqlite3
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Set, Any
+from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
@@ -79,25 +80,38 @@ def fetch_unmatched_points(mmsi: str) -> dict[str, Any]:
 
 class ConnectionManager:
     def __init__(self):
-        self.active: Set[WebSocket] = set()
+        self.clients: dict[str, WebSocket] = {}  # client_id → websocket
 
-    async def connect(self, ws: WebSocket):
+    async def connect(self, ws: WebSocket) -> str:
+        """Accept connection, assign a unique client_id, return it."""
+        client_id = str(uuid.uuid4())
         await ws.accept()
-        self.active.add(ws)
+        self.clients[client_id] = ws
+        return client_id
 
-    def disconnect(self, ws: WebSocket):
-        self.active.discard(ws)
+    def disconnect(self, client_id: str):
+        self.clients.pop(client_id, None)
 
     async def broadcast(self, message: dict):
-        dead = set()
+        """Send to all connected clients (used for shared state: ships, mode)."""
+        dead = []
         payload = json.dumps(message)
-        for ws in self.active:
+        for cid, ws in list(self.clients.items()):
             try:
                 await ws.send_text(payload)
             except Exception:
-                dead.add(ws)
-        for ws in dead:
-            self.active.discard(ws)
+                dead.append(cid)
+        for cid in dead:
+            self.clients.pop(cid, None)
+
+    async def send_to(self, client_id: str, message: dict):
+        """Send a message to one specific client only."""
+        ws = self.clients.get(client_id)
+        if ws:
+            try:
+                await ws.send_text(json.dumps(message))
+            except Exception:
+                self.clients.pop(client_id, None)
 
 
 manager = ConnectionManager()
@@ -105,7 +119,8 @@ detector: IncidentDetector | None = None
 monitor: AISMonitor | None = None
 _ais_task: asyncio.Task | None = None
 _current_demo_mode: bool = DEMO_MODE
-_investigation_task: asyncio.Task | None = None
+# Per-client investigation tasks: client_id → asyncio.Task
+_investigation_tasks: dict[str, asyncio.Task] = {}
 
 
 # ── Module-level AIS callbacks (so they can be reused on mode switch) ─────────
@@ -206,11 +221,16 @@ class ModeRequest(BaseModel):
     demo: bool
 
 
+class AbortRequest(BaseModel):
+    client_id: str = ""
+
+
 class InvestigationRequest(BaseModel):
     mmsi: str
     vessel_name: str = ""
     flag_state: str = ""
     region: str = ""
+    client_id: str = ""
 
 
 async def _run_investigation(
@@ -218,10 +238,10 @@ async def _run_investigation(
     vessel_name: str,
     flag_state: str,
     region: str,
+    client_id: str,
     local_data: dict | None = None,
 ):
-    """Background task: run the full investigation pipeline and broadcast results."""
-    global _investigation_task
+    """Background task: run the full investigation pipeline for one client."""
     vessel_info = {
         "mmsi": mmsi,
         "vessel_name": vessel_name,
@@ -231,10 +251,10 @@ async def _run_investigation(
     }
 
     async def progress(msg: dict):
-        await manager.broadcast({"type": "agent_status", "data": msg})
+        await manager.send_to(client_id, {"type": "agent_status", "data": msg})
 
-    print(f"[Investigate] Starting pipeline for MMSI {mmsi}")
-    await manager.broadcast({
+    print(f"[Investigate] Starting pipeline for MMSI {mmsi} (client {client_id[:8]})")
+    await manager.send_to(client_id, {
         "type": "agent_status",
         "data": {"stage": "investigation", "message": f"Investigation started for MMSI {mmsi}..."},
     })
@@ -242,7 +262,7 @@ async def _run_investigation(
     try:
         ml_score = await get_dark_fleet_probability(mmsi, vessel_name)
         print(f"[Investigate] ML score: {ml_score['probability']:.0%} ({ml_score['risk_tier']})")
-        await manager.broadcast({
+        await manager.send_to(client_id, {
             "type": "agent_status",
             "data": {
                 "stage": "investigation",
@@ -256,32 +276,32 @@ async def _run_investigation(
             vessel_info, ml_score, agent_findings, progress_callback=progress
         )
 
-        await manager.broadcast({"type": "report", "data": report})
-        print(f"[Investigate] Report broadcast for MMSI {mmsi}")
+        await manager.send_to(client_id, {"type": "report", "data": report})
+        print(f"[Investigate] Report sent to client {client_id[:8]} for MMSI {mmsi}")
 
     except asyncio.CancelledError:
-        print(f"[Investigate] Task cancelled for MMSI {mmsi}")
-        await manager.broadcast({
+        print(f"[Investigate] Task cancelled for MMSI {mmsi} (client {client_id[:8]})")
+        await manager.send_to(client_id, {
             "type": "agent_status",
             "data": {"stage": "aborted", "message": f"Investigation aborted for MMSI {mmsi}"},
         })
     except Exception:
         import traceback
         traceback.print_exc()
-        await manager.broadcast({
+        await manager.send_to(client_id, {
             "type": "agent_status",
             "data": {"stage": "error", "message": f"Investigation failed for MMSI {mmsi}"},
         })
     finally:
-        _investigation_task = None
+        _investigation_tasks.pop(client_id, None)
 
 
 @app.post("/investigate/abort")
-async def abort_investigation():
-    """Cancel the currently running investigation task, if any."""
-    global _investigation_task
-    if _investigation_task and not _investigation_task.done():
-        _investigation_task.cancel()
+async def abort_investigation(body: AbortRequest):
+    """Cancel the running investigation task for a specific client."""
+    task = _investigation_tasks.get(body.client_id)
+    if task and not task.done():
+        task.cancel()
         return {"status": "aborted"}
     return {"status": "no_active_investigation"}
 
@@ -304,33 +324,34 @@ async def investigate(body: InvestigationRequest):
             "data": {"mmsi": mmsi, "vessel": vessel},
         })
 
-    global _investigation_task
-    # Cancel any running investigation before starting a new one
-    if _investigation_task and not _investigation_task.done():
-        _investigation_task.cancel()
+    client_id = body.client_id
+    # Cancel any running investigation for this client before starting a new one
+    existing = _investigation_tasks.get(client_id)
+    if existing and not existing.done():
+        existing.cancel()
     local_data = await asyncio.to_thread(load_mmsi_context, mmsi)
-    _investigation_task = asyncio.create_task(
-        _run_investigation(mmsi, vessel_name, flag_state, region, local_data=local_data)
+    _investigation_tasks[client_id] = asyncio.create_task(
+        _run_investigation(mmsi, vessel_name, flag_state, region, client_id=client_id, local_data=local_data)
     )
 
-    # Fetch GFW 1-year path in background (sync call — run in executor)
-    async def _broadcast_gfw_path():
+    # Fetch GFW 1-year path — send only to the requesting client
+    async def _send_gfw_path():
         try:
             result = await asyncio.to_thread(fetch_vessel_path, mmsi)
-            await manager.broadcast({"type": "gfw_path", "data": result})
+            await manager.send_to(client_id, {"type": "gfw_path", "data": result})
         except Exception:
-            await manager.broadcast({
+            await manager.send_to(client_id, {
                 "type": "gfw_path",
                 "data": {"mmsi": mmsi, "error": "Failed to fetch vessel path", "path": [], "metadata": {}},
             })
-    asyncio.create_task(_broadcast_gfw_path())
+    asyncio.create_task(_send_gfw_path())
 
-    async def _broadcast_unmatched_points():
+    async def _send_unmatched_points():
         try:
             result = await asyncio.to_thread(fetch_unmatched_points, mmsi)
-            await manager.broadcast({"type": "unmatched_points", "data": result})
+            await manager.send_to(client_id, {"type": "unmatched_points", "data": result})
         except Exception:
-            await manager.broadcast({
+            await manager.send_to(client_id, {
                 "type": "unmatched_points",
                 "data": {
                     "mmsi": mmsi,
@@ -339,7 +360,7 @@ async def investigate(body: InvestigationRequest):
                     "error": "Failed to fetch unmatched historical points",
                 },
             })
-    asyncio.create_task(_broadcast_unmatched_points())
+    asyncio.create_task(_send_unmatched_points())
 
     return {"status": "started", "mmsi": mmsi}
 
@@ -486,20 +507,20 @@ async def generate_pdf(report: dict = Body(...)):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+    client_id = await manager.connect(websocket)
     try:
-        # Send initial state immediately
-        if monitor:
-            await websocket.send_text(json.dumps({
-                "type": "init",
-                "data": {
-                    "ships": monitor.get_ships(),
-                    "hotzones": HOTZONES,
-                    "summary": detector.get_summary() if detector else {},
-                    "demo_mode": _current_demo_mode,
-                    "has_live_key": True,
-                }
-            }))
+        # Send initial state with client_id so the frontend can tag requests
+        await manager.send_to(client_id, {
+            "type": "init",
+            "data": {
+                "client_id": client_id,
+                "ships": monitor.get_ships() if monitor else [],
+                "hotzones": HOTZONES,
+                "summary": detector.get_summary() if detector else {},
+                "demo_mode": _current_demo_mode,
+                "has_live_key": True,
+            }
+        })
 
         # Keep connection alive and handle any client messages
         while True:
@@ -507,15 +528,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
                 msg = json.loads(data)
                 if msg.get("type") == "ping":
-                    await websocket.send_text(json.dumps({"type": "pong"}))
+                    await manager.send_to(client_id, {"type": "pong"})
             except asyncio.TimeoutError:
-                await websocket.send_text(json.dumps({"type": "heartbeat"}))
+                await manager.send_to(client_id, {"type": "heartbeat"})
             except WebSocketDisconnect:
                 break
     except Exception:
         pass
     finally:
-        manager.disconnect(websocket)
+        manager.disconnect(client_id)
+        # Cancel any running investigation for this client when they disconnect
+        task = _investigation_tasks.pop(client_id, None)
+        if task and not task.done():
+            task.cancel()
 
 
 # ── Serve built frontend (production) ─────────────────────────────────────────
