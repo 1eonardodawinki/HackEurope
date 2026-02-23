@@ -123,6 +123,32 @@ def _get_vessel_id(mmsi: str) -> Tuple[Optional[str], Optional[dict]]:
     }
 
 
+def _split_track_segments(points: list[dict]) -> list[list[dict]]:
+    """
+    Split raw AIS track points into segments at gaps > 200 km.
+    AIS positions are already on water, but a large gap (dark period) would cause
+    Mapbox to draw a straight line through land. Splitting prevents this.
+    Returns a list of segments (list of lists), each with >= 2 points.
+    """
+    KM_PER_DEG = 111
+    MAX_GAP_KM = 200
+
+    segments: list[list[dict]] = []
+    current: list[dict] = []
+    for p in points:
+        if current:
+            dlat = (p["lat"] - current[-1]["lat"]) * KM_PER_DEG
+            dlon = (p["lon"] - current[-1]["lon"]) * KM_PER_DEG * 0.7
+            if (dlat ** 2 + dlon ** 2) ** 0.5 > MAX_GAP_KM:
+                if len(current) >= 2:
+                    segments.append(current)
+                current = []
+        current.append(p)
+    if len(current) >= 2:
+        segments.append(current)
+    return segments if segments else [points]
+
+
 def _fetch_tracks(vessel_id: str, start_date: str, end_date: str) -> list[dict]:
     """Fetch track points from GFW. Tracks endpoint returns 404; fallback to Events API."""
     if not GFW_API_TOKEN:
@@ -160,7 +186,11 @@ def _fetch_tracks(vessel_id: str, start_date: str, end_date: str) -> list[dict]:
                         "timestamp": t.get("timestamp"),
                     })
             if result:
-                return result
+                # Raw AIS track points are already on water, but gaps during dark
+                # periods would create land-crossing lines in Mapbox. Split into
+                # segments at gaps > 200 km so Mapbox shows disconnected segments
+                # rather than straight lines through land.
+                return _split_track_segments(result)
         # Tracks 404 — fallback: Events API (fishing + port visits) for positions
         return _fetch_positions_from_events(client, vessel_id, start_date, end_date)
 
@@ -342,8 +372,12 @@ def fetch_vessel_path(mmsi: str) -> dict:
     flat = [p for seg in segments for p in seg]
     if len(flat) > MAX_POINTS:
         step = max(1, len(flat) // MAX_POINTS)
-        flat = flat[::step]
-        segments = [flat]
+        # Downsample each segment individually — never merge segments into one,
+        # because Mapbox renders each segment as a separate LineString feature.
+        # Merging would create straight cross-segment lines that cross land.
+        segments = [[seg[i] for i in range(0, len(seg), step)] for seg in segments]
+        segments = [seg for seg in segments if len(seg) >= 2]
+        flat = [p for seg in segments for p in seg]
 
     out["path"] = [{"lat": p["lat"], "lon": p["lon"], "timestamp": p.get("timestamp")} for p in flat]
     out["path_segments"] = [[{"lat": p["lat"], "lon": p["lon"]} for p in seg] for seg in segments]
