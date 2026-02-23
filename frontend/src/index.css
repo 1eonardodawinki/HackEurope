@@ -102,8 +102,9 @@ html, body, #root {
 .incident-marker.high { background: var(--danger); }
 
 /* ── Visibility helpers (applied always, overridden in media query) ────────── */
-.map-mobile-only   { display: none; }
-.incident-mobile-bar { display: none; }
+.map-mobile-only      { display: none; }
+.map-mobile-only-flex { display: none; }
+.incident-mobile-bar  { display: none; }
 .incident-panel-inner { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 /* transparent on desktop so it doesn't affect flex layout */
 .mobile-hidden { display: contents; }
@@ -112,9 +113,10 @@ html, body, #root {
 /* ── Mobile Responsive (≤ 768px) ─────────────────────────────────────────── */
 @media (max-width: 768px) {
   /* Visibility helpers */
-  .mobile-hidden     { display: none !important; }
-  .map-desktop-only  { display: none !important; }
-  .map-mobile-only   { display: block; }
+  .mobile-hidden        { display: none !important; }
+  .map-desktop-only     { display: none !important; }
+  .map-mobile-only      { display: block; }
+  .map-mobile-only-flex { display: flex !important; }
 
   /* Dashboard — header: slightly taller, wraps */
   .dash-header {
@@ -136,15 +138,19 @@ html, body, #root {
   /* Dashboard — body: map fills full screen, panel is an overlay */
   .dash-body { flex-direction: column !important; }
   .dash-map-wrap { flex: 1 !important; min-height: 0; }
-  /* Incident panel — full-screen slide-in overlay on mobile */
+  /* Incident panel — symmetric overlay on mobile (16px margin each side) */
   .incident-panel {
     position: fixed !important;
-    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    top: 0 !important; bottom: 0 !important;
+    left: 16px !important; right: 16px !important;
     z-index: 200;
-    transform: translateX(100%);
+    transform: translateX(calc(100% + 20px));
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-    width: 100% !important;
+    width: auto !important;
     border: none !important;
+    border-left: 1px solid rgba(255,255,255,0.1) !important;
+    border-right: 1px solid rgba(255,255,255,0.1) !important;
+    box-shadow: 0 0 40px rgba(0,0,0,0.95);
     flex: none !important;
   }
   .incident-panel:not(.mobile-collapsed) { transform: translateX(0) !important; }

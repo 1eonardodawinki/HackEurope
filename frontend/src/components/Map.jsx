@@ -669,7 +669,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       </div>
 
       {/* Mobile: FILTER + panel toggle — top-right */}
-      <div className="map-mobile-only" style={{ position: 'absolute', top: 16, right: 16, zIndex: 300, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+      <div className="map-mobile-only-flex" style={{ position: 'absolute', top: 8, right: 8, zIndex: 300, alignItems: 'flex-start', gap: 6 }}>
         {/* FILTER with dropdown */}
         <div style={{ position: 'relative' }}>
           <button onClick={() => { setFilterOpen(v => !v); if (filterOpen) setTypeExpanded(false) }}
