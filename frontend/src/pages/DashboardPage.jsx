@@ -326,17 +326,22 @@ export default function DashboardPage({ onHome }) {
             investigating={investigating}
           />
           <div style={styles.headerDivider} className="dash-header-divider" />
-          <ModeIndicator
-            connected={connected}
-            demoMode={demoMode}
-            hasLiveKey={hasLiveKey}
-            switching={modeSwitching}
-            onSwitch={switchMode}
-          />
+          <div className="mobile-hidden">
+            <ModeIndicator
+              connected={connected}
+              demoMode={demoMode}
+              hasLiveKey={hasLiveKey}
+              switching={modeSwitching}
+              onSwitch={switchMode}
+            />
+          </div>
           {agentStatus.stage !== 'idle' && agentStatus.stage !== 'critic_result' && (
-            <AgentBadge status={agentStatus} />
+            <div className="mobile-hidden">
+              <AgentBadge status={agentStatus} />
+            </div>
           )}
           <button
+            className="mobile-hidden"
             style={{
               ...styles.editZonesBtn,
               borderColor: editZones ? 'rgba(255,255,255,0.3)' : 'var(--border)',
@@ -369,6 +374,10 @@ export default function DashboardPage({ onHome }) {
             gfwPath={gfwPath}
             unmatchedPoints={unmatchedPoints}
             onTrackByMmsi={(mmsi) => trackShip(mmsi)}
+            demoMode={demoMode}
+            connected={connected}
+            onSwitchMode={switchMode}
+            onToggleEditZones={() => setEditZones(v => !v)}
           />
         </div>
 

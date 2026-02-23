@@ -101,11 +101,24 @@ html, body, #root {
 }
 .incident-marker.high { background: var(--danger); }
 
+/* ── Visibility helpers (applied always, overridden in media query) ────────── */
+.map-mobile-only   { display: none; }
+.incident-mobile-bar { display: none; }
+.incident-panel-inner { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+/* transparent on desktop so it doesn't affect flex layout */
+.mobile-hidden { display: contents; }
+
 /* ── Mobile Responsive (≤ 768px) ─────────────────────────────────────────── */
 @media (max-width: 768px) {
-  /* Dashboard — header */
+  /* Visibility helpers */
+  .mobile-hidden     { display: none !important; }
+  .map-desktop-only  { display: none !important; }
+  .map-mobile-only   { display: block; }
+
+  /* Dashboard — header: slightly taller, wraps */
   .dash-header {
     height: auto !important;
+    min-height: 68px;
     flex-wrap: wrap;
     padding: 10px 14px !important;
     gap: 8px;
@@ -181,4 +194,21 @@ html, body, #root {
   .report-intel-grid { grid-template-columns: 1fr !important; }
   .report-evidence-grid { grid-template-columns: 1fr !important; }
   .report-header-meters { display: none !important; }
+
+  /* Incident panel — hamburger toggle */
+  .incident-mobile-bar {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 44px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .incident-panel.mobile-collapsed { height: 44px !important; }
+  .incident-panel.mobile-collapsed .incident-panel-inner { display: none !important; }
+
+  /* MMSI input: wider on mobile */
+  .mmsi-search-wrap input { font-size: 11px !important; padding: 5px 10px !important; }
 }

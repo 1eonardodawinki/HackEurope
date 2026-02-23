@@ -6,40 +6,58 @@ export default function IncidentPanel({
   investigating, agentStatus, logs, onOpenReport, hasReport, onAbort
 }) {
   const [activeTab, setActiveTab] = useState('agents')
+  const [mobileExpanded, setMobileExpanded] = useState(false)
 
-  // Switch to AGENTS tab when the pipeline becomes active
+  // Switch to AGENTS tab and auto-expand on mobile when pipeline becomes active
   useEffect(() => {
     if (agentStatus.stage !== 'idle' && agentStatus.stage !== 'critic_result') {
       setActiveTab('agents')
+      setMobileExpanded(true)
     }
   }, [agentStatus.stage])
 
+  const stageLabel = agentStatus.stage && agentStatus.stage !== 'idle'
+    ? agentStatus.stage.replace(/_/g, ' ').toUpperCase()
+    : 'INTEL'
+
   return (
-    <div style={styles.panel} className="incident-panel">
-      {/* Tabs */}
-      <div style={styles.tabs}>
-        {Object.entries(TAB_LABELS).map(([tab, label]) => (
-          <button key={tab}
-            style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
-            onClick={() => setActiveTab(tab)}>
-            {label}
-          </button>
-        ))}
+    <div style={styles.panel} className={`incident-panel${mobileExpanded ? '' : ' mobile-collapsed'}`}>
+
+      {/* Mobile hamburger bar */}
+      <div className="incident-mobile-bar" onClick={() => setMobileExpanded(v => !v)}>
+        <span style={{ fontSize: 10, color: agentStatus.stage !== 'idle' ? 'var(--green)' : 'var(--text3)', letterSpacing: 1.5 }}>
+          {stageLabel}
+        </span>
+        <span style={{ fontSize: 18, color: 'var(--text3)', letterSpacing: 1 }}>≡</span>
       </div>
 
-      {activeTab === 'agents' && <AgentsTab agentStatus={agentStatus} />}
-      {activeTab === 'log'    && <LogTab logs={logs || []} onOpenReport={onOpenReport} hasReport={hasReport} />}
+      {/* Panel content — hidden on mobile when collapsed */}
+      <div className="incident-panel-inner">
+        {/* Tabs */}
+        <div style={styles.tabs}>
+          {Object.entries(TAB_LABELS).map(([tab, label]) => (
+            <button key={tab}
+              style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
+              onClick={() => setActiveTab(tab)}>
+              {label}
+            </button>
+          ))}
+        </div>
 
-      {investigating && (
-        <button style={styles.abortBtn} onClick={onAbort}>
-          ABORT INVESTIGATION
-        </button>
-      )}
-      {hasReport && !investigating && (
-        <button style={styles.reportCta} onClick={onOpenReport}>
-          VIEW INTELLIGENCE REPORT
-        </button>
-      )}
+        {activeTab === 'agents' && <AgentsTab agentStatus={agentStatus} />}
+        {activeTab === 'log'    && <LogTab logs={logs || []} onOpenReport={onOpenReport} hasReport={hasReport} />}
+
+        {investigating && (
+          <button style={styles.abortBtn} onClick={onAbort}>
+            ABORT INVESTIGATION
+          </button>
+        )}
+        {hasReport && !investigating && (
+          <button style={styles.reportCta} onClick={onOpenReport}>
+            VIEW INTELLIGENCE REPORT
+          </button>
+        )}
+      </div>
     </div>
   )
 }

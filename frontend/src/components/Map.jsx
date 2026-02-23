@@ -75,7 +75,7 @@ function buildHotzoneFeatures(hotzones, overrides) {
   })
 }
 
-export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, onDeleteZone, onAddZone, gfwPath, unmatchedPoints, onTrackByMmsi }) {
+export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, onDeleteZone, onAddZone, gfwPath, unmatchedPoints, onTrackByMmsi, demoMode, connected, onSwitchMode, onToggleEditZones }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
   const shipsData = useRef({})
@@ -102,6 +102,9 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
   const [noToken, setNoToken] = useState(false)
   const [typeFilter, setTypeFilter] = useState('all')
   const [addingZone, setAddingZone] = useState(false)
+  const [legendExpanded, setLegendExpanded] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [typeExpanded, setTypeExpanded] = useState(false)
   useEffect(() => { addingZoneRef.current = addingZone }, [addingZone])
 
   // ── Cursor when adding zone ───────────────────────────────────────────────
@@ -626,8 +629,8 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-      {/* Type filter bar + Track Ship */}
-      <div style={styles.filterBar}>
+      {/* Type filter bar — desktop only */}
+      <div style={styles.filterBar} className="map-desktop-only">
         <div style={{ display: 'flex', gap: 4 }}>
           {['all', 'tanker', 'cargo', 'fishing'].map(t => (
             <button key={t} onClick={() => setTypeFilter(t)} style={{
@@ -638,6 +641,76 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ── Mobile overlays ─────────────────────────────────────────── */}
+
+      {/* Mobile: Demo / Live toggle — top-left */}
+      <div className="map-mobile-only" style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+          background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px' }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+            background: !connected ? 'var(--danger)' : demoMode ? 'var(--danger)' : 'var(--green)',
+            animation: 'pulse-dot 2s infinite' }} />
+          <span style={{ fontSize: 10, color: 'var(--text3)', letterSpacing: 1.5 }}>
+            {!connected ? 'OFFLINE' : demoMode ? 'DEMO' : 'LIVE'}
+          </span>
+          {connected && onSwitchMode && (
+            <button onClick={() => onSwitchMode(!demoMode)} style={{
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+              color: 'var(--text3)', fontSize: 9, letterSpacing: 1.5, fontFamily: 'inherit',
+              padding: '2px 8px', cursor: 'pointer',
+            }}>
+              {demoMode ? 'LIVE' : 'DEMO'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile: FILTER button — top-right */}
+      <div className="map-mobile-only" style={{ position: 'absolute', top: 16, right: 16, zIndex: 20 }}>
+        <button onClick={() => { setFilterOpen(v => !v); if (filterOpen) setTypeExpanded(false) }}
+          style={{ ...styles.filterBtn, ...( filterOpen ? styles.filterBtnActive : {}), display: 'flex', alignItems: 'center', gap: 6 }}>
+          FILTER <span style={{ fontSize: 8 }}>{filterOpen ? '▲' : '▼'}</span>
+        </button>
+        {filterOpen && (
+          <div style={{ background: 'rgba(8,8,8,0.97)', backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.1)', marginTop: 2, minWidth: 130,
+            display: 'flex', flexDirection: 'column' }}>
+            {/* TYPE row */}
+            <button onClick={() => setTypeExpanded(v => !v)} style={{
+              background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)',
+              color: typeExpanded ? 'var(--text)' : 'var(--text3)', fontSize: 9, letterSpacing: 2,
+              fontFamily: 'inherit', padding: '10px 14px', cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              TYPE <span style={{ fontSize: 8 }}>{typeExpanded ? '▲' : '▶'}</span>
+            </button>
+            {typeExpanded && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, padding: '8px 10px',
+                borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                {['all', 'tanker', 'cargo', 'fishing'].map(t => (
+                  <button key={t} onClick={() => setTypeFilter(t)} style={{
+                    ...styles.filterBtn, padding: '4px 9px',
+                    ...(typeFilter === t ? styles.filterBtnActive : {}),
+                  }}>
+                    {t.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* EDIT ZONES row */}
+            <button onClick={() => { onToggleEditZones?.(); setFilterOpen(false) }} style={{
+              background: editZones ? 'rgba(255,255,255,0.05)' : 'transparent',
+              border: 'none', color: editZones ? 'var(--text)' : 'var(--text3)',
+              fontSize: 9, letterSpacing: 2, fontFamily: 'inherit',
+              padding: '10px 14px', cursor: 'pointer', textAlign: 'left',
+            }}>
+              {editZones ? '✓ ' : ''}EDIT ZONES
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Ship tooltip */}
@@ -701,8 +774,8 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         </div>
       )}
 
-      {/* Legend */}
-      <div style={styles.legend}>
+      {/* Legend — desktop */}
+      <div style={styles.legend} className="map-desktop-only">
         <LegendItem arrow color="#fff" label="Live Position" />
         <LegendItem line color="#4a9eff" label="Activity within last 12 months" />
         <LegendItem ring color="var(--danger)" label="Historically went dark" />
@@ -712,6 +785,33 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         <LegendItem dot color="#f59e0b" label="Russian Oil Ports" />
         <LegendItem dot color="#ff3355" label="Iranian / NK Ports" />
         <LegendItem dot color="#f97316" label="Venezuelan Ports" />
+      </div>
+
+      {/* Legend — mobile (collapsible) */}
+      <div className="map-mobile-only" style={{ position: 'absolute', bottom: 24, left: 16, zIndex: 10,
+        background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.08)' }}>
+        <button onClick={() => setLegendExpanded(v => !v)} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 20, width: '100%', padding: '8px 12px',
+          background: 'none', border: 'none', color: 'var(--text3)',
+          fontSize: 9, letterSpacing: 2, fontFamily: 'inherit', cursor: 'pointer',
+        }}>
+          LEGEND <span style={{ fontSize: 8 }}>{legendExpanded ? '▲' : '▼'}</span>
+        </button>
+        {legendExpanded && (
+          <div style={{ padding: '2px 12px 10px' }}>
+            <LegendItem arrow color="#fff" label="Live Position" />
+            <LegendItem line color="#4a9eff" label="Activity within last 12 months" />
+            <LegendItem ring color="var(--danger)" label="Historically went dark" />
+            <LegendItem dashed color="#ff6b00" label="High Risk Areas" />
+            <LegendItem dashed color="#a855f7" label="STS Transfer Zones" />
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '6px 0 4px' }} />
+            <LegendItem dot color="#f59e0b" label="Russian Oil Ports" />
+            <LegendItem dot color="#ff3355" label="Iranian / NK Ports" />
+            <LegendItem dot color="#f97316" label="Venezuelan Ports" />
+          </div>
+        )}
       </div>
     </div>
   )
