@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const API = import.meta.env.PROD ? '' : 'http://localhost:8000'
+const API = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000')
 
 export default function ReportModal({ report, onClose }) {
   const [showReasoning, setShowReasoning] = useState(false)
