@@ -4,8 +4,8 @@ import IncidentPanel from '../components/IncidentPanel.jsx'
 import ReportModal from '../components/ReportModal.jsx'
 import { useWebSocket } from '../hooks/useWebSocket.js'
 
-const API = import.meta.env.PROD ? '' : 'http://localhost:8000'
-const TRACK_API = import.meta.env.PROD ? '' : 'http://localhost:8001'
+const API = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000')
+const TRACK_API = import.meta.env.VITE_TRACK_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8001')
 
 export default function DashboardPage({ onHome }) {
   const [ships, setShips] = useState([])
