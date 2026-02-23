@@ -3,16 +3,16 @@ import { useState, useEffect } from 'react'
 const TAB_LABELS = { agents: 'AGENTS', log: 'LOG' }
 
 export default function IncidentPanel({
-  investigating, agentStatus, logs, onOpenReport, hasReport, onAbort
+  investigating, agentStatus, logs, onOpenReport, hasReport, onAbort,
+  mobileExpanded = false, onToggleMobilePanel = () => {}
 }) {
   const [activeTab, setActiveTab] = useState('agents')
-  const [mobileExpanded, setMobileExpanded] = useState(false)
 
   // Switch to AGENTS tab and auto-expand on mobile when pipeline becomes active
   useEffect(() => {
     if (agentStatus.stage !== 'idle' && agentStatus.stage !== 'critic_result') {
       setActiveTab('agents')
-      setMobileExpanded(true)
+      if (!mobileExpanded) onToggleMobilePanel()
     }
   }, [agentStatus.stage])
 
@@ -24,7 +24,7 @@ export default function IncidentPanel({
     <div style={styles.panel} className={`incident-panel${mobileExpanded ? '' : ' mobile-collapsed'}`}>
 
       {/* Mobile hamburger bar */}
-      <div className="incident-mobile-bar" onClick={() => setMobileExpanded(v => !v)}>
+      <div className="incident-mobile-bar" onClick={() => onToggleMobilePanel()}>
         <span style={{ fontSize: 10, color: agentStatus.stage !== 'idle' ? 'var(--green)' : 'var(--text3)', letterSpacing: 1.5 }}>
           {stageLabel}
         </span>

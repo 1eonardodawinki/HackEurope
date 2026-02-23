@@ -107,6 +107,7 @@ html, body, #root {
 .incident-panel-inner { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 /* transparent on desktop so it doesn't affect flex layout */
 .mobile-hidden { display: contents; }
+.mobile-panel-btn { display: none; }
 
 /* ── Mobile Responsive (≤ 768px) ─────────────────────────────────────────── */
 @media (max-width: 768px) {
@@ -118,10 +119,10 @@ html, body, #root {
   /* Dashboard — header: slightly taller, wraps */
   .dash-header {
     height: auto !important;
-    min-height: 68px;
+    min-height: 80px;
     flex-wrap: wrap;
-    padding: 10px 14px !important;
-    gap: 8px;
+    padding: 12px 14px !important;
+    gap: 10px;
   }
   .dash-header-stats { display: none !important; }
   .dash-header-right {
@@ -144,8 +145,10 @@ html, body, #root {
   }
 
   /* Dashboard — MMSI search */
-  .mmsi-search-wrap { flex: 1; min-width: 0; }
-  .mmsi-search-wrap input { width: auto !important; flex: 1; min-width: 60px; }
+  .mmsi-search-wrap { flex: 1; min-width: 0; display: flex; align-items: center; }
+  .mmsi-search-wrap input { width: 78px !important; flex: none !important; min-width: 0; }
+  .mmsi-search-wrap .investigate-btn { flex: 1 !important; padding: 6px 8px !important; }
+  .mobile-panel-btn { display: inline-flex !important; align-items: center; justify-content: center; width: 36px; height: 32px; padding: 0 !important; }
 
   /* Landing — nav */
   .land-nav { padding: 0 16px !important; }
@@ -209,6 +212,6 @@ html, body, #root {
   .incident-panel.mobile-collapsed { height: 44px !important; }
   .incident-panel.mobile-collapsed .incident-panel-inner { display: none !important; }
 
-  /* MMSI input: wider on mobile */
-  .mmsi-search-wrap input { font-size: 11px !important; padding: 5px 10px !important; }
+  /* MMSI input: smaller on mobile */
+  .mmsi-search-wrap input { font-size: 11px !important; padding: 5px 8px !important; }
 }
