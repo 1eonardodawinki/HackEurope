@@ -106,8 +106,7 @@ export default function DashboardPage({ onHome }) {
       }
     },
     onGfwPath: (data) => {
-      setGfwPath(data)
-      // Enrich investigated vessel with GFW metadata (name, type) when available
+      // Sea route not shown for INVESTIGATE — only TRACK SHIP shows the route
       if (data?.metadata) {
         setInvestigatedVessel(prev => prev && String(prev.mmsi) === String(data.mmsi) ? {
           ...prev,
