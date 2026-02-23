@@ -1,4 +1,4 @@
-# BALAGAER — Maritime Intelligence Platform
+# Pelagos — Maritime Intelligence Platform
 
 Real-time maritime dark-fleet detection and AI-powered vessel investigation platform. Monitor live AIS traffic across geopolitical hotzones, detect anomalies, and trigger deep multi-agent investigations into suspected sanctions-evading vessels.
 
