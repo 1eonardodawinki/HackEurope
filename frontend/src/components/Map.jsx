@@ -75,7 +75,7 @@ function buildHotzoneFeatures(hotzones, overrides) {
   })
 }
 
-export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, onDeleteZone, onAddZone, gfwPath, unmatchedPoints, onTrackByMmsi, demoMode, connected, onSwitchMode, onToggleEditZones }) {
+export default function Map({ ships, hotzones, incidents, selectedShip, onSelectShip, editZones, zoneOverrides, onZoneChange, onDeleteZone, onAddZone, gfwPath, unmatchedPoints, onTrackByMmsi, demoMode, connected, onSwitchMode, onToggleEditZones, mobilePanelOpen, onToggleMobilePanel }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
   const shipsData = useRef({})
@@ -668,49 +668,61 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         </div>
       </div>
 
-      {/* Mobile: FILTER button — top-right */}
-      <div className="map-mobile-only" style={{ position: 'absolute', top: 16, right: 16, zIndex: 20 }}>
-        <button onClick={() => { setFilterOpen(v => !v); if (filterOpen) setTypeExpanded(false) }}
-          style={{ ...styles.filterBtn, ...( filterOpen ? styles.filterBtnActive : {}), display: 'flex', alignItems: 'center', gap: 6 }}>
-          FILTER <span style={{ fontSize: 8 }}>{filterOpen ? '▲' : '▼'}</span>
+      {/* Mobile: FILTER + panel toggle — top-right */}
+      <div className="map-mobile-only" style={{ position: 'absolute', top: 16, right: 16, zIndex: 300, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+        {/* FILTER with dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => { setFilterOpen(v => !v); if (filterOpen) setTypeExpanded(false) }}
+            style={{ ...styles.filterBtn, ...( filterOpen ? styles.filterBtnActive : {}), display: 'flex', alignItems: 'center', gap: 6 }}>
+            FILTER <span style={{ fontSize: 8 }}>{filterOpen ? '▲' : '▼'}</span>
+          </button>
+          {filterOpen && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 2,
+              background: 'rgba(8,8,8,0.97)', backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.1)', minWidth: 130,
+              display: 'flex', flexDirection: 'column' }}>
+              {/* TYPE row */}
+              <button onClick={() => setTypeExpanded(v => !v)} style={{
+                background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)',
+                color: typeExpanded ? 'var(--text)' : 'var(--text3)', fontSize: 9, letterSpacing: 2,
+                fontFamily: 'inherit', padding: '10px 14px', cursor: 'pointer',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                TYPE <span style={{ fontSize: 8 }}>{typeExpanded ? '▲' : '▶'}</span>
+              </button>
+              {typeExpanded && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, padding: '8px 10px',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  {['all', 'tanker', 'cargo', 'fishing'].map(t => (
+                    <button key={t} onClick={() => setTypeFilter(t)} style={{
+                      ...styles.filterBtn, padding: '4px 9px',
+                      ...(typeFilter === t ? styles.filterBtnActive : {}),
+                    }}>
+                      {t.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* EDIT ZONES row */}
+              <button onClick={() => { onToggleEditZones?.(); setFilterOpen(false) }} style={{
+                background: editZones ? 'rgba(255,255,255,0.05)' : 'transparent',
+                border: 'none', color: editZones ? 'var(--text)' : 'var(--text3)',
+                fontSize: 9, letterSpacing: 2, fontFamily: 'inherit',
+                padding: '10px 14px', cursor: 'pointer', textAlign: 'left',
+              }}>
+                {editZones ? '✓ ' : ''}EDIT ZONES
+              </button>
+            </div>
+          )}
+        </div>
+        {/* ≡ Panel toggle */}
+        <button
+          onClick={onToggleMobilePanel}
+          style={{ ...styles.filterBtn, ...(mobilePanelOpen ? styles.filterBtnActive : {}),
+            width: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 18, padding: '4px 0', letterSpacing: 0 }}>
+          ≡
         </button>
-        {filterOpen && (
-          <div style={{ background: 'rgba(8,8,8,0.97)', backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.1)', marginTop: 2, minWidth: 130,
-            display: 'flex', flexDirection: 'column' }}>
-            {/* TYPE row */}
-            <button onClick={() => setTypeExpanded(v => !v)} style={{
-              background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)',
-              color: typeExpanded ? 'var(--text)' : 'var(--text3)', fontSize: 9, letterSpacing: 2,
-              fontFamily: 'inherit', padding: '10px 14px', cursor: 'pointer',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              TYPE <span style={{ fontSize: 8 }}>{typeExpanded ? '▲' : '▶'}</span>
-            </button>
-            {typeExpanded && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, padding: '8px 10px',
-                borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                {['all', 'tanker', 'cargo', 'fishing'].map(t => (
-                  <button key={t} onClick={() => setTypeFilter(t)} style={{
-                    ...styles.filterBtn, padding: '4px 9px',
-                    ...(typeFilter === t ? styles.filterBtnActive : {}),
-                  }}>
-                    {t.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* EDIT ZONES row */}
-            <button onClick={() => { onToggleEditZones?.(); setFilterOpen(false) }} style={{
-              background: editZones ? 'rgba(255,255,255,0.05)' : 'transparent',
-              border: 'none', color: editZones ? 'var(--text)' : 'var(--text3)',
-              fontSize: 9, letterSpacing: 2, fontFamily: 'inherit',
-              padding: '10px 14px', cursor: 'pointer', textAlign: 'left',
-            }}>
-              {editZones ? '✓ ' : ''}EDIT ZONES
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Ship tooltip */}

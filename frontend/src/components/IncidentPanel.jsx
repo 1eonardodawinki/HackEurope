@@ -16,22 +16,10 @@ export default function IncidentPanel({
     }
   }, [agentStatus.stage])
 
-  const stageLabel = agentStatus.stage && agentStatus.stage !== 'idle'
-    ? agentStatus.stage.replace(/_/g, ' ').toUpperCase()
-    : 'INTEL'
-
   return (
     <div style={styles.panel} className={`incident-panel${mobileExpanded ? '' : ' mobile-collapsed'}`}>
 
-      {/* Mobile hamburger bar */}
-      <div className="incident-mobile-bar" onClick={() => onToggleMobilePanel()}>
-        <span style={{ fontSize: 10, color: agentStatus.stage !== 'idle' ? 'var(--green)' : 'var(--text3)', letterSpacing: 1.5 }}>
-          {stageLabel}
-        </span>
-        <span style={{ fontSize: 18, color: 'var(--text3)', letterSpacing: 1 }}>≡</span>
-      </div>
-
-      {/* Panel content — hidden on mobile when collapsed */}
+      {/* Panel content */}
       <div className="incident-panel-inner">
         {/* Tabs */}
         <div style={styles.tabs}>

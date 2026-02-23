@@ -326,8 +326,6 @@ export default function DashboardPage({ onHome }) {
             onSubmit={submitInvestigation}
             disabled={investigating || !connected}
             investigating={investigating}
-            onTogglePanel={toggleMobilePanel}
-            panelOpen={mobilePanelOpen}
           />
           <div style={styles.headerDivider} className="dash-header-divider" />
           <div className="mobile-hidden">
@@ -382,6 +380,8 @@ export default function DashboardPage({ onHome }) {
             connected={connected}
             onSwitchMode={switchMode}
             onToggleEditZones={() => setEditZones(v => !v)}
+            mobilePanelOpen={mobilePanelOpen}
+            onToggleMobilePanel={toggleMobilePanel}
           />
         </div>
 
@@ -502,7 +502,7 @@ const styles = {
   },
 }
 
-function MmsiSearch({ value, onChange, onSubmit, disabled, investigating, onTogglePanel, panelOpen }) {
+function MmsiSearch({ value, onChange, onSubmit, disabled, investigating }) {
   const handleKey = (e) => { if (e.key === 'Enter') onSubmit() }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} className="mmsi-search-wrap">
@@ -540,21 +540,6 @@ function MmsiSearch({ value, onChange, onSubmit, disabled, investigating, onTogg
         }}
       >
         {investigating ? 'RUNNING' : 'INVESTIGATE'}
-      </button>
-      <button
-        className="mobile-panel-btn"
-        onClick={onTogglePanel}
-        style={{
-          background: panelOpen ? 'rgba(255,255,255,0.06)' : 'transparent',
-          border: '1px solid var(--border)',
-          color: 'var(--text2)',
-          fontSize: 18, fontFamily: 'inherit',
-          cursor: 'pointer',
-          transition: 'background 0.15s',
-          flexShrink: 0,
-        }}
-      >
-        ≡
       </button>
     </div>
   )
