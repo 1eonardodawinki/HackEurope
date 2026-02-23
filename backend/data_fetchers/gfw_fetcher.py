@@ -33,6 +33,35 @@ def _interpolate_segment(points: list[dict], num_between: int) -> list[dict]:
     return out
 
 
+def _apply_maritime_routing(points: list[dict]) -> list[dict]:
+    """
+    Route each leg between event waypoints through actual navigable sea lanes using
+    the searoute library (offline pre-computed shipping graph). Falls back to linear
+    interpolation if searoute is unavailable or fails for a given leg.
+    """
+    try:
+        import searoute as sr
+    except ImportError:
+        return _interpolate_segment(points, SMOOTH_POINTS_BETWEEN)
+
+    if len(points) < 2:
+        return points
+
+    out = []
+    for i in range(len(points) - 1):
+        a, b = points[i], points[i + 1]
+        try:
+            route = sr.searoute([a["lon"], a["lat"]], [b["lon"], b["lat"]])
+            raw_coords = route["geometry"]["coordinates"]  # [[lon, lat], ...]
+            for lon, lat in raw_coords[:-1]:
+                out.append({"lat": lat, "lon": lon, "timestamp": a.get("timestamp")})
+        except Exception:
+            seg = _interpolate_segment([a, b], SMOOTH_POINTS_BETWEEN)
+            out.extend(seg[:-1])
+    out.append(points[-1])
+    return out
+
+
 def _get_vessel_id(mmsi: str) -> Tuple[Optional[str], Optional[dict]]:
     """Search GFW by MMSI, return (vessel_id, vessel_info) or (None, None)."""
     if not GFW_API_TOKEN:
@@ -241,14 +270,13 @@ def _fetch_positions_from_events(
     if not segments:
         return []
 
-    # Interpolate points between each pair for a smoother curve (voyage path appearance)
-    # Event data gives discrete locations; interpolation adds points along straight lines
-    # so the map line is smooth rather than jagged. For true voyage path we would need
-    # GFW hourly AIS positions (not currently exposed per-vessel via public API).
+    # Route each leg through actual maritime sea lanes (avoids drawing across land).
+    # searoute uses a pre-computed shipping graph; falls back to linear interpolation
+    # for any leg where routing fails.
     smoothed = []
     for seg in segments:
-        interpolated = _interpolate_segment(seg, SMOOTH_POINTS_BETWEEN)
-        smoothed.append(interpolated)
+        routed = _apply_maritime_routing(seg)
+        smoothed.append(routed)
     return smoothed[0] if len(smoothed) == 1 else smoothed
 
 
