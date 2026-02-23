@@ -399,11 +399,11 @@ def render_pdf(report: dict) -> bytes:
     now_str  = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M UTC")
     styles   = _build_styles()
 
-    title    = report.get("title", "Maritime Intelligence Assessment")
-    cls_str  = report.get("classification", "INTELLIGENCE REPORT - RESTRICTED")
-    exec_sum = _sanitize_text(report.get("executive_summary", ""))
-    threat   = _sanitize_text(report.get("threat_assessment", ""))
-    cot      = _sanitize_text(report.get("chain_of_thought", ""))
+    title    = report.get("title") or "Maritime Intelligence Assessment"
+    cls_str  = report.get("classification") or "INTELLIGENCE REPORT - RESTRICTED"
+    exec_sum = _sanitize_text(report.get("executive_summary") or "")
+    threat   = _sanitize_text(report.get("threat_assessment") or "")
+    cot      = _sanitize_text(report.get("chain_of_thought") or "")
 
     evidence    = [_sanitize_text(x) for x in (report.get("supporting_evidence", []) or [])]
     risks       = [_sanitize_text(x) for x in (report.get("risk_factors", []) or [])]
