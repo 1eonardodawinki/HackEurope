@@ -118,13 +118,6 @@ html, body, #root {
   .map-mobile-only      { display: block; }
   .map-mobile-only-flex { display: flex !important; }
 
-  /* Hero video: zoom out on mobile so more of the scene is visible */
-  .hero-video {
-    object-fit: contain !important;
-    object-position: center center !important;
-    background: #000;
-  }
-
   /* Dashboard — header: slightly taller, wraps */
   .dash-header {
     height: auto !important;

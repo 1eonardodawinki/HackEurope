@@ -108,7 +108,6 @@ export default function LandingPage({ onEnter }) {
           autoPlay muted loop playsInline
           aria-hidden="true"
           style={s.heroBg}
-          className="hero-video"
           src="/hero-bg.mp4"
         />
         <div style={s.heroOverlay} aria-hidden="true" />
