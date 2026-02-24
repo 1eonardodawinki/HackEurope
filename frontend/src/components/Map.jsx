@@ -668,9 +668,8 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         </div>
       </div>
 
-      {/* Mobile: FILTER + panel toggle — top-right */}
-      <div className="map-mobile-only-flex" style={{ position: 'absolute', top: 8, right: 8, zIndex: 300, alignItems: 'flex-start', gap: 6 }}>
-        {/* FILTER with dropdown */}
+      {/* Mobile: FILTER — top-right, low z-index (panel covers it) */}
+      <div className="map-mobile-only" style={{ position: 'absolute', top: 8, right: 52, zIndex: 10 }}>
         <div style={{ position: 'relative' }}>
           <button onClick={() => { setFilterOpen(v => !v); if (filterOpen) setTypeExpanded(false) }}
             style={{ ...styles.filterBtn, ...( filterOpen ? styles.filterBtnActive : {}), display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -715,7 +714,10 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
             </div>
           )}
         </div>
-        {/* ≡ Panel toggle */}
+      </div>
+
+      {/* Mobile: ≡ Panel toggle — top-right, high z-index (stays above panel) */}
+      <div className="map-mobile-only" style={{ position: 'absolute', top: 8, right: 8, zIndex: 500 }}>
         <button
           onClick={onToggleMobilePanel}
           style={{ ...styles.filterBtn, ...(mobilePanelOpen ? styles.filterBtnActive : {}),
@@ -800,7 +802,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       </div>
 
       {/* Legend — mobile (collapsible) */}
-      <div className="map-mobile-only" style={{ position: 'absolute', bottom: 24, left: 16, zIndex: 10,
+      <div className="map-mobile-only" style={{ position: 'absolute', bottom: 60, left: 16, zIndex: 10,
         background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(10px)',
         border: '1px solid rgba(255,255,255,0.08)' }}>
         <button onClick={() => setLegendExpanded(v => !v)} style={{
