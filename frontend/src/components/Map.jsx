@@ -646,7 +646,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       {/* ── Mobile overlays ─────────────────────────────────────────── */}
 
       {/* Mobile: Demo / Live toggle — top-left */}
-      <div className="map-mobile-only" style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
+      <div className="map-mobile-only" style={{ position: 'absolute', top: 8, left: 8, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8,
           background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px' }}>
@@ -826,6 +826,23 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
             <LegendItem dot color="#f97316" label="Venezuelan Ports" />
           </div>
         )}
+      </div>
+
+      {/* Mobile: Stats box — bottom-right */}
+      <div className="map-mobile-only" style={{ position: 'absolute', bottom: 60, right: 8, zIndex: 10,
+        background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.08)', padding: '8px 12px',
+        display: 'flex', gap: 14 }}>
+        {[
+          { label: 'VESSELS', value: ships.length, color: 'var(--text)' },
+          { label: 'IN ZONE', value: ships.filter(s => s.in_hotzone).length, color: 'var(--warning)' },
+          { label: 'DARK', value: ships.filter(s => s.status === 'dark').length, color: 'var(--danger)' },
+        ].map(s => (
+          <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <span style={{ fontSize: 16, fontWeight: 300, color: s.color, lineHeight: 1 }}>{s.value}</span>
+            <span style={{ fontSize: 7, color: 'var(--text3)', letterSpacing: 1.5 }}>{s.label}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
