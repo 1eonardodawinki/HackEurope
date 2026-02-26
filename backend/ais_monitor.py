@@ -137,8 +137,17 @@ class AISMonitor:
     # ── Public API ────────────────────────────────────────────────────────────
 
     def update_zones(self, zones: dict):
-        """Replace active hotzones and signal the live AIS loop to reconnect."""
+        """Replace active hotzones, evict ships from removed zones, and signal reconnect."""
         self._hotzones = dict(zones)
+        # Immediately evict ships whose zone no longer exists
+        evicted = [
+            mmsi for mmsi, ship in self._ships.items()
+            if ship.get("in_hotzone") and ship.get("in_hotzone") not in self._hotzones
+        ]
+        for mmsi in evicted:
+            del self._ships[mmsi]
+        if evicted:
+            print(f"[AIS] Evicted {len(evicted)} ship(s) from removed zone(s)")
         if self._zones_updated is not None:
             self._zones_updated.set()
 
