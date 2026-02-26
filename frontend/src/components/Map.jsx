@@ -413,6 +413,8 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       // Resize handle
       const el = document.createElement('div')
       el.style.cssText = 'width:10px;height:10px;background:white;border-radius:50%;cursor:ew-resize;border:1px solid rgba(0,0,0,0.4);box-shadow:0 0 0 1px rgba(255,255,255,0.3);'
+      el.addEventListener('mousedown', (e) => e.stopPropagation())
+      el.addEventListener('click', (e) => e.stopPropagation())
       const edgeLon = geo.centerLon + geo.radius / Math.cos((geo.centerLat * Math.PI) / 180)
       const marker = new mapboxgl.Marker({ element: el, draggable: true })
         .setLngLat([edgeLon, geo.centerLat])
@@ -431,7 +433,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       const delEl = document.createElement('div')
       delEl.textContent = '✕'
       delEl.style.cssText = 'width:18px;height:18px;background:#ff3355;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 0 0 1px rgba(255,255,255,0.2);user-select:none;'
-      delEl.onclick = () => onDeleteZone?.(name)
+      delEl.onclick = (e) => { e.stopPropagation(); onDeleteZone?.(name) }
       const delMarker = new mapboxgl.Marker({ element: delEl, anchor: 'center' })
         .setLngLat([geo.centerLon, geo.centerLat])
         .addTo(map.current)
