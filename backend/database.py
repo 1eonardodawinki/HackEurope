@@ -168,6 +168,57 @@ async def save_report(report: dict):
         print(f"[DB] Saved report for region: {row['region']}")
 
 
+# ── Zones ─────────────────────────────────────────────────────────────────────
+
+async def load_zones() -> dict:
+    """Load all persisted zones. Returns {} if DB is unavailable or table is empty."""
+    rows = await _select("zones", {})
+    return {
+        row["name"]: {
+            "min_lat": row["min_lat"],
+            "max_lat": row["max_lat"],
+            "min_lon": row["min_lon"],
+            "max_lon": row["max_lon"],
+            "center_lat": row.get("center_lat"),
+            "center_lon": row.get("center_lon"),
+            "color": row.get("color", "#ff6b00"),
+            "description": row.get("description", ""),
+            "commodities": row.get("commodities") or [],
+        }
+        for row in rows
+    }
+
+
+async def save_zone(name: str, zone: dict) -> None:
+    await _upsert("zones", [{
+        "name": name,
+        "min_lat": zone["min_lat"],
+        "max_lat": zone["max_lat"],
+        "min_lon": zone["min_lon"],
+        "max_lon": zone["max_lon"],
+        "center_lat": zone.get("center_lat"),
+        "center_lon": zone.get("center_lon"),
+        "color": zone.get("color", "#ff6b00"),
+        "description": zone.get("description", ""),
+        "commodities": json.dumps(zone.get("commodities", [])),
+    }], on_conflict="name")
+
+
+async def delete_zone(name: str) -> None:
+    if not _DB_ENABLED or "zones" in _disabled_tables:
+        return
+    url = f"{SUPABASE_URL}/rest/v1/zones"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.delete(url, headers=_headers(), params={"name": f"eq.{name}"})
+            if resp.status_code == 404:
+                _disabled_tables.add("zones")
+            elif resp.status_code >= 400:
+                print(f"[DB] zones delete error {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        print(f"[DB] zones delete failed: {e}")
+
+
 # ── Queries ───────────────────────────────────────────────────────────────────
 
 async def get_recent_incidents(region: str = None, limit: int = 50) -> list[dict]:

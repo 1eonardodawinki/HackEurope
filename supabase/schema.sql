@@ -71,3 +71,21 @@ CREATE TABLE IF NOT EXISTS intelligence_reports (
 
 CREATE INDEX IF NOT EXISTS idx_reports_region ON intelligence_reports(region);
 CREATE INDEX IF NOT EXISTS idx_reports_time   ON intelligence_reports(created_at DESC);
+
+
+-- ── Monitored zones ────────────────────────────────────────────────────────
+-- Source of truth for which areas are actively tracked.
+-- Seeded from config.py defaults on first startup; modified via the UI.
+CREATE TABLE IF NOT EXISTS zones (
+  name        TEXT PRIMARY KEY,
+  min_lat     DOUBLE PRECISION NOT NULL,
+  max_lat     DOUBLE PRECISION NOT NULL,
+  min_lon     DOUBLE PRECISION NOT NULL,
+  max_lon     DOUBLE PRECISION NOT NULL,
+  center_lat  DOUBLE PRECISION,
+  center_lon  DOUBLE PRECISION,
+  color       TEXT DEFAULT '#ff6b00',
+  description TEXT DEFAULT '',
+  commodities JSONB DEFAULT '[]',
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);

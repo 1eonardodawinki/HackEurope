@@ -146,12 +146,24 @@ async def lifespan(app: FastAPI):
         await manager.broadcast(msg)
 
     try:
+        # Load persisted zones; seed DB with defaults if empty
+        zones_from_db = await db.load_zones()
+        if zones_from_db:
+            _active_hotzones = zones_from_db
+            print(f"[Zones] Loaded {len(_active_hotzones)} zone(s) from DB")
+        else:
+            _active_hotzones = dict(HOTZONES)
+            for name, zone in HOTZONES.items():
+                asyncio.create_task(db.save_zone(name, zone))
+            print(f"[Zones] Seeded DB with {len(_active_hotzones)} default zone(s)")
+
         detector = IncidentDetector(broadcast_callback=broadcast)
         monitor = AISMonitor(
             on_ship_update=_on_ship_update,
             on_incident=_on_incident,
             demo_mode=_current_demo_mode,
         )
+        monitor.update_zones(_active_hotzones)
         _ais_task = asyncio.create_task(monitor.start())
     except Exception as e:
         # Never fail process startup because monitoring init failed; keep API/health alive.
@@ -228,6 +240,7 @@ async def add_hotzone(req: ZoneRequest):
     }
     if monitor:
         monitor.update_zones(_active_hotzones)
+    asyncio.create_task(db.save_zone(req.name, _active_hotzones[req.name]))
     return {"status": "added", "name": req.name, "total_zones": len(_active_hotzones)}
 
 
@@ -239,6 +252,7 @@ async def delete_hotzone(name: str):
     del _active_hotzones[name]
     if monitor:
         monitor.update_zones(_active_hotzones)
+    asyncio.create_task(db.delete_zone(name))
     return {"status": "deleted", "name": name, "total_zones": len(_active_hotzones)}
 
 
@@ -510,6 +524,7 @@ async def switch_mode(body: ModeRequest):
 
     detector = IncidentDetector(broadcast_callback=broadcast)
     monitor = AISMonitor(on_ship_update=_on_ship_update, on_incident=_on_incident, demo_mode=_current_demo_mode)
+    monitor.update_zones(_active_hotzones)
     _ais_task = asyncio.create_task(monitor.start())
 
     await manager.broadcast({
@@ -557,7 +572,7 @@ async def websocket_endpoint(websocket: WebSocket):
             "data": {
                 "client_id": client_id,
                 "ships": monitor.get_ships() if monitor else [],
-                "hotzones": HOTZONES,
+                "hotzones": _active_hotzones,
                 "summary": detector.get_summary() if detector else {},
                 "demo_mode": _current_demo_mode,
                 "has_live_key": True,
