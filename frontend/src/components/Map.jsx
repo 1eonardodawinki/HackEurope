@@ -102,6 +102,13 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
   const [noToken, setNoToken] = useState(false)
   const [typeFilter, setTypeFilter] = useState('all')
   const [addingZone, setAddingZone] = useState(false)
+
+  // Auto-activate zone-adding mode when edit mode is turned on
+  useEffect(() => {
+    const next = !!editZones
+    addingZoneRef.current = next
+    setAddingZone(next)
+  }, [editZones])
   const [legendExpanded, setLegendExpanded] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [typeExpanded, setTypeExpanded] = useState(false)
@@ -355,8 +362,7 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
       map.current.on('click', (e) => {
         if (!addingZoneRef.current) return
         onAddZoneRef.current?.({ centerLon: e.lngLat.lng, centerLat: e.lngLat.lat })
-        addingZoneRef.current = false
-        setAddingZone(false)
+        // Stay in adding mode so user can keep placing zones until they click DONE
       })
 
       setMapReady(true)
@@ -763,28 +769,10 @@ export default function Map({ ships, hotzones, incidents, selectedShip, onSelect
         </div>
       )}
 
-      {/* Edit mode hint + add zone button */}
+      {/* Edit mode hint */}
       {editZones && (
         <div style={{ ...styles.editHint, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span>DRAG TO MOVE &nbsp;·&nbsp; HANDLE TO RESIZE</span>
-          <button
-            onClick={() => {
-              const next = !addingZone
-              addingZoneRef.current = next
-              setAddingZone(next)
-              if (map.current) map.current.getCanvas().style.cursor = next ? 'crosshair' : ''
-            }}
-            style={{
-              background: addingZone ? '#fff' : 'transparent',
-              color: addingZone ? '#000' : 'var(--text3)',
-              border: '1px solid',
-              borderColor: addingZone ? '#fff' : 'rgba(255,255,255,0.3)',
-              fontSize: 9, letterSpacing: 2, fontFamily: 'inherit', fontWeight: 600,
-              padding: '3px 10px', cursor: 'pointer', transition: 'all 0.15s',
-            }}
-          >
-            {addingZone ? 'CLICK MAP TO PLACE' : '+ ADD ZONE'}
-          </button>
+          <span>CLICK MAP TO ADD ZONE &nbsp;·&nbsp; DRAG TO MOVE &nbsp;·&nbsp; HANDLE TO RESIZE</span>
         </div>
       )}
 
