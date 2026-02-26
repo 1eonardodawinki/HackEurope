@@ -119,6 +119,7 @@ detector: IncidentDetector | None = None
 monitor: AISMonitor | None = None
 _ais_task: asyncio.Task | None = None
 _current_demo_mode: bool = DEMO_MODE
+_active_hotzones: dict = dict(HOTZONES)  # Mutable at runtime via POST/DELETE /hotzones
 # Per-client investigation tasks: client_id → asyncio.Task
 _investigation_tasks: dict[str, asyncio.Task] = {}
 
@@ -197,7 +198,48 @@ async def get_ships():
 
 @app.get("/hotzones")
 async def get_hotzones():
-    return HOTZONES
+    return _active_hotzones
+
+
+class ZoneRequest(BaseModel):
+    name: str
+    min_lat: float
+    max_lat: float
+    min_lon: float
+    max_lon: float
+    center_lat: float | None = None
+    center_lon: float | None = None
+    color: str = "#ff6b00"
+    description: str = ""
+    commodities: list[str] = []
+
+
+@app.post("/hotzones")
+async def add_hotzone(req: ZoneRequest):
+    global _active_hotzones
+    _active_hotzones[req.name] = {
+        "min_lat": req.min_lat, "max_lat": req.max_lat,
+        "min_lon": req.min_lon, "max_lon": req.max_lon,
+        "center_lat": req.center_lat if req.center_lat is not None else (req.min_lat + req.max_lat) / 2,
+        "center_lon": req.center_lon if req.center_lon is not None else (req.min_lon + req.max_lon) / 2,
+        "color": req.color,
+        "description": req.description,
+        "commodities": req.commodities,
+    }
+    if monitor:
+        monitor.update_zones(_active_hotzones)
+    return {"status": "added", "name": req.name, "total_zones": len(_active_hotzones)}
+
+
+@app.delete("/hotzones/{name:path}")
+async def delete_hotzone(name: str):
+    global _active_hotzones
+    if name not in _active_hotzones:
+        return {"status": "not_found", "name": name}
+    del _active_hotzones[name]
+    if monitor:
+        monitor.update_zones(_active_hotzones)
+    return {"status": "deleted", "name": name, "total_zones": len(_active_hotzones)}
 
 
 @app.get("/summary")

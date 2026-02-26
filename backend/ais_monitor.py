@@ -54,8 +54,9 @@ def _ais_type_label(code) -> str:
     return "other"
 
 
-def in_any_hotzone(lat: float, lon: float) -> str | None:
-    for name, hz in HOTZONES.items():
+def in_any_hotzone(lat: float, lon: float, hotzones=None) -> str | None:
+    zones = hotzones if hotzones is not None else HOTZONES
+    for name, hz in zones.items():
         if hz["min_lat"] <= lat <= hz["max_lat"] and hz["min_lon"] <= lon <= hz["max_lon"]:
             return name
     return None
@@ -121,17 +122,29 @@ class AISMonitor:
         self._running = False
         self._incident_count = 0
 
+        # Mutable hotzones — updated at runtime via update_zones()
+        self._hotzones: dict = dict(HOTZONES)
+        # Set this event to trigger an AISstream reconnect with the new bounding boxes
+        self._zones_updated: asyncio.Event | None = None  # created in start()
+
         # Initialise demo ships
         if self._demo_mode:
             for spec in DEMO_SHIPS_SPEC:
                 # PERSIAN STAR starts dark immediately — it's the key demo incident vessel
                 initial_status = "dark" if spec["mmsi"] == DARK_SHIP_MMSI else "active"
-                self._ships[spec["mmsi"]] = {**spec, "trail": [], "status": initial_status, "in_hotzone": in_any_hotzone(spec["lat"], spec["lon"])}
+                self._ships[spec["mmsi"]] = {**spec, "trail": [], "status": initial_status, "in_hotzone": in_any_hotzone(spec["lat"], spec["lon"], self._hotzones)}
 
     # ── Public API ────────────────────────────────────────────────────────────
 
+    def update_zones(self, zones: dict):
+        """Replace active hotzones and signal the live AIS loop to reconnect."""
+        self._hotzones = dict(zones)
+        if self._zones_updated is not None:
+            self._zones_updated.set()
+
     async def start(self):
         self._running = True
+        self._zones_updated = asyncio.Event()
         if self._demo_mode:
             await asyncio.gather(
                 self._demo_movement_loop(),
@@ -177,7 +190,7 @@ class AISMonitor:
                 if len(ship["trail"]) > 20:
                     ship["trail"] = ship["trail"][-20:]
 
-                ship["in_hotzone"] = in_any_hotzone(ship["lat"], ship["lon"])
+                ship["in_hotzone"] = in_any_hotzone(ship["lat"], ship["lon"], self._hotzones)
                 ship["last_seen"] = datetime.now(timezone.utc).isoformat()
 
             await self.on_ship_update(self.get_ships())
@@ -281,40 +294,50 @@ class AISMonitor:
     # ── Live AIS loop ─────────────────────────────────────────────────────────
 
     async def _live_ais_loop(self):
-        """Connect to AISstream.io WebSocket and process real AIS data."""
+        """Connect to AISstream.io WebSocket and process real AIS data.
+
+        Reconnects automatically when zones are updated via update_zones().
+        """
         url = "wss://stream.aisstream.io/v0/stream"
 
-        bboxes = [
-            [[hz["min_lat"], hz["min_lon"]], [hz["max_lat"], hz["max_lon"]]]
-            for hz in HOTZONES.values()
-        ]
-
-        subscribe_msg = json.dumps({
-            "APIKey": AISSTREAM_API_KEY,
-            "BoundingBoxes": bboxes,
-            "FilterMessageTypes": [
-                "PositionReport",               # Class A (cargo, tankers)
-                "ExtendedClassBPositionReport",  # Class B (smaller vessels)
-                "StandardClassBPositionReport",  # Class B standard format
-                "ShipStaticData",
-            ],
-        })
-
         while self._running:
+            self._zones_updated.clear()
+
+            bboxes = [
+                [[hz["min_lat"], hz["min_lon"]], [hz["max_lat"], hz["max_lon"]]]
+                for hz in self._hotzones.values()
+            ]
+
+            subscribe_msg = json.dumps({
+                "APIKey": AISSTREAM_API_KEY,
+                "BoundingBoxes": bboxes,
+                "FilterMessageTypes": [
+                    "PositionReport",               # Class A (cargo, tankers)
+                    "ExtendedClassBPositionReport",  # Class B (smaller vessels)
+                    "StandardClassBPositionReport",  # Class B standard format
+                    "ShipStaticData",
+                ],
+            })
+
             try:
                 async with websockets.connect(url) as ws:
                     await ws.send(subscribe_msg)
-                    async for raw in ws:
-                        if not self._running:
-                            break
+                    print(f"[AIS] Subscribed to {len(bboxes)} zone(s)")
+                    while self._running and not self._zones_updated.is_set():
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                        except asyncio.TimeoutError:
+                            continue
                         try:
                             msg = json.loads(raw)
                             await self._process_ais_message(msg)
                         except Exception:
                             continue
+                    # If zones_updated, fall through to reconnect immediately
             except Exception as e:
-                print(f"[AIS] Connection error: {e}. Reconnecting in 10s...")
-                await asyncio.sleep(10)
+                if not self._zones_updated.is_set():
+                    print(f"[AIS] Connection error: {e}. Reconnecting in 10s...")
+                    await asyncio.sleep(10)
 
     async def _live_dropout_detection_loop(self):
         """
@@ -481,7 +504,7 @@ class AISMonitor:
                 "cog": cog,
                 "type": ship_type,
                 "status": "active",
-                "in_hotzone": in_any_hotzone(lat, lon),
+                "in_hotzone": in_any_hotzone(lat, lon, self._hotzones),
                 "trail": trail,
                 "last_seen": datetime.now(timezone.utc).isoformat(),
             }

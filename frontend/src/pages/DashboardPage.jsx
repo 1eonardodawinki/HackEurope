@@ -39,16 +39,20 @@ export default function DashboardPage({ onHome }) {
   const handleDeleteZone = useCallback((name) => {
     setDeletedZones(prev => new Set([...prev, name]))
     setCustomZones(prev => { const next = { ...prev }; delete next[name]; return next })
+    fetch(`${API}/hotzones/${encodeURIComponent(name)}`, { method: 'DELETE' }).catch(() => {})
   }, [])
 
   const handleAddZone = useCallback(({ centerLon, centerLat }) => {
     zoneCountRef.current += 1
     const name = `Zone ${zoneCountRef.current}`
     const r = 5
-    setCustomZones(prev => ({
-      ...prev,
-      [name]: { min_lat: centerLat - r, max_lat: centerLat + r, min_lon: centerLon - r, max_lon: centerLon + r, color: '#ff6b00', description: '', commodities: [] },
-    }))
+    const zone = { min_lat: centerLat - r, max_lat: centerLat + r, min_lon: centerLon - r, max_lon: centerLon + r, color: '#ff6b00', description: '', commodities: [] }
+    setCustomZones(prev => ({ ...prev, [name]: zone }))
+    fetch(`${API}/hotzones`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, ...zone }),
+    }).catch(() => {})
   }, [])
 
   const [logs, setLogs] = useState([])

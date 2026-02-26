@@ -48,6 +48,14 @@ HOTZONES = {
         "color": "#ff6b00",
         "description": "Bab-el-Mandeb strait — Houthi threat zone",
     },
+    "Gulf of Guinea": {
+        "min_lat": -3.0, "max_lat": 5.0,
+        "min_lon": -5.0, "max_lon": 9.0,
+        "center_lat": 1.0, "center_lon": 2.0,
+        "commodities": ["Brent Crude Oil", "LNG"],
+        "color": "#ff6b00",
+        "description": "West African piracy hotspot — oil theft, kidnapping, and illegal bunkering",
+    },
 }
 
 # ── Detection Thresholds ──────────────────────────────────────────────────────
